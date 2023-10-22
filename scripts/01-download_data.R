@@ -31,9 +31,9 @@ url_election <- paste0(
 election_data <- read.csv(url_election, header = TRUE, sep = ",")
 
 #### Save data ####
-write_csv(DP02, "inputs/data/DP_02.csv")
-write_csv(DP03, "inputs/data/DP_03.csv")
-write_csv(DP05, "inputs/data/DP_05.csv")
-write_csv(covid_data, "inputs/data/covid_data.csv")
-write_csv(election_data, "inputs/data/election_data.csv")
+write.csv(DP02, "inputs/data/DP_02.csv", row.names = FALSE)
+write.csv(DP03, "inputs/data/DP_03.csv", row.names = FALSE)
+write.csv(DP05, "inputs/data/DP_05.csv", row.names = FALSE)
+write.csv(covid_data, "inputs/data/covid_data.csv", row.names = FALSE)
+write.csv(election_data, "inputs/data/election_data.csv", row.names = FALSE)
          
