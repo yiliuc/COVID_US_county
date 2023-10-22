@@ -19,15 +19,14 @@ DP03 <- read.csv(url(url03), stringsAsFactors = FALSE)
 url05 <- "https://api.census.gov/data/2021/acs/acs5/profile?get=group(DP05)&for=county:*"
 DP05 <- read.csv(url(url05), stringsAsFactors = FALSE)
 
-# note_book_url <- "https://api.census.gov/data/2021/acs/acs5/variables.csv"
-# note_book <- read.csv(url(note_book_url), stringsAsFactors = FALSE)
-# note_book <- note_book %>% 
-#  filter(grepl("DP", X..name))
+url_covid <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_daily_reports/03-09-2023.csv"
+covid_data <- read.csv(url_covid, header = TRUE, sep = ",")
 
 
 #### Save data ####
 write_csv(DP02, "inputs/data/DP_02.csv")
 write_csv(DP03, "inputs/data/DP_03.csv")
 write_csv(DP05, "inputs/data/DP_05.csv")
+write_csv(DP05, "inputs/data/covid_data.csv")
 
          
