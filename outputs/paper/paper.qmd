@@ -22,20 +22,32 @@ library(tidyverse)
 library(palmerpenguins)
 ```
 
-
 # Introduction
 
 On May 23rd, the WHO chief Tedros announced that the COVID-19 ends and COVID-19 is no longer regarded as a global threat. At this point, the epidemic that lasted for three years has officially ended. During the three years, nearly 7.6 billion people got infected and about 6.9 million people lost their lives. With that said, the US seems to be one of the countries that had influenced by COVID-19 most, there was about 1.1 million deaths and 104 million infections. The mortality rate of COVID-19 in US is about 341 per 100,000, which is significantly higher than other western developed countries. Meanwhile, the COVID was entirely occured in the Biden's term and next year will be the Federal Election. It is worth to know how the COVID deaths is related to the politics and how to recover it, especially that we are now at the post-pandemic period.
 
-In this paper, I aim to find the variations of death rate across different counties, to see how the counties with different socio-economic factors were affected by COVID differently. In addition, I will also include the political factors, to see whether the party that counties voted for will display any differences on COVID death.  There are three primary data sources which are American Community Survey collecting the socio-economic information for each county, the John-Hopkins public data for COVID cases and deaths for each county and the 2020 US Federal Election from Fox News. With capturing this variations, it can help us to access the inequality of mortality caused by COVID across different counties. Besides, people living at each county will also know whether their political reference will affect the death rate, this can significantly judge them about how they will vote on the 2024 Federal Election.
+In this paper, I aim to find the variations of death rate across different counties, to see how the counties with different socio-economic factors were affected by COVID differently. In addition, I will also include the political factors, to see whether the party that counties voted for will display any differences on COVID death. There are three primary data sources which are American Community Survey collecting the socio-economic information for each county, the John-Hopkins public data for COVID cases and deaths for each county and the 2020 US Federal Election from Fox News. With capturing this variations, it can help us to access the inequality of mortality caused by COVID across different counties. Besides, people living at each county will also know whether their political reference will affect the death rate, this can significantly judge them about how they will vote on the 2024 Federal Election.
 
 There will be four main parts in this paper: Data, Models, Results, Discussion and Conclusion. In the Data part, I will introduce the data used in this paper and high light the key variables. The Models and Results session will introduce the model that will be used in this paper and the results from it. Moreover, the results will be interpreted and provide the insights about COVID deaths rate. Lastly, I will conclude the entire paper and discussion the limitations and drawbacks.
 
-
-
 # Data {#sec-data}
 
-Some of our data is of penguins (@fig-bills), from @palmerpenguins.
+In this paper, there are three main sources of data, which are American Community Survey (ACS), The Center for Systems Science and Engineering (CSSE) at John-Hopkins University, Fox News. These three sources contains different dimensional data in predicting the death rate of COVID in each county.
+
+## American Community Survey (ACS)
+
+The data from ACS contains the socio-economic information for each county. While there are many tables from ACS, I will only take three of them which are DP02, DP03 and DP05. All the tables are the 2021 five-year ACS estimates
+
+For DP02, it contains the data regarding the social characteristics. In this paper, I will only take the information regarding the educational attainment such as the percentage of residents in each county that have at a least bachelor degree. Compared to DP02, DP03 contains the information about the economic characteristics. To understand the deaths rate in terms of economy, I will grab the information about the proportion of residents with a private insurance, the mean household income and unemployment rate at each county. Finally, DP05 contains the demographic data and housing estimates. In this paper, I will take the total population, proportions of children and people above 85 and percentage of white and black residents.
+
+
+## CSSE at JHU
+The CSSE at JHU collects the worldwide COVID data since 2020 to 2023. All the raw data are available on their CSSE GitHub which can easily access. In particular, the COVID daily report since 2020 for each county on US are listed. However, they stop to update the data after March 9th, 2023 as no significant changes. The COVID data for US used in the paper is data collected on March 9th.
+
+In the data on March 9th, it contains the number of confirmed cases and deaths for each county in US, as well as the incident rate. To perform the data analysis later in this paper, I will only use the COVID cases and deaths in each county.
+
+## Fox News
+It contains the county-level election results during the 2020 Federal Election. For each county, it contains the number of votes for the demographic and republican party
 
 ```{r}
 
@@ -53,9 +65,7 @@ And also planes (@fig-planes). (You can change the height and width, but don't w
 #| message: false
 ```
 
-Talk way more about it. 
-
-
+Talk way more about it.
 
 # Model
 
@@ -65,26 +75,21 @@ Here we briefly describe the Bayesian analysis model used to investigate... Back
 
 ## Model set-up
 
-Define $y_i$ as the number of seconds that the plane remained aloft. Then $\beta_i$ is the wing width and $\gamma_i$ is the wing length, both measured in millimeters.  
-\[
-\begin{align} 
+Define $y_i$ as the number of seconds that the plane remained aloft. Then $\beta_i$ is the wing width and $\gamma_i$ is the wing length, both measured in millimeters.\
+\[ \begin{align} 
 y_i|\mu_i, \sigma &\sim \mbox{Normal}(\mu_i, \sigma) \\
 \mu_i &= \alpha + \beta_i + \gamma_i\\
 \alpha &\sim \mbox{Normal}(0, 2.5) \\
 \beta &\sim \mbox{Normal}(0, 2.5) \\
 \gamma &\sim \mbox{Normal}(0, 2.5) \\
 \sigma &\sim \mbox{Exponential}(1)
-\end{align}
-\]
-We run the model in R [@citeR] using the `rstanarm` package of @rstanarm. We use the default priors from `rstanarm`.
-
+\end{align} \] We run the model in R [@citeR] using the `rstanarm` package of @rstanarm. We use the default priors from `rstanarm`.
 
 ### Model justification
 
 We expect a positive relationship between the size of the wings and time spent aloft. In particular...
 
 We can use maths by including latex between dollar signs, for instance $\theta$.
-
 
 # Results
 
@@ -106,14 +111,11 @@ Our results are summarized in @tbl-modelresults.
 #| warning: false
 ```
 
-
-
-
 # Discussion
 
 ## First discussion point {#sec-first-point}
 
-If my paper were 10 pages, then should be be at least 2.5 pages. The discussion is a chance to show off what you know and what you learnt from all this. 
+If my paper were 10 pages, then should be be at least 2.5 pages. The discussion is a chance to show off what you know and what you learnt from all this.
 
 ## Second discussion point
 
@@ -125,13 +127,8 @@ Weaknesses and next steps should also be included.
 
 \newpage
 
-
-
-
 \newpage
 
-
 # References
-https://news.un.org/en/story/2023/05/1136367
-https://www.aljazeera.com/news/2023/5/11/three-years-1-1-million-deaths-covid-emergency-ending-in-us
 
+https://news.un.org/en/story/2023/05/1136367 https://www.aljazeera.com/news/2023/5/11/three-years-1-1-million-deaths-covid-emergency-ending-in-us
