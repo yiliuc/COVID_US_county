@@ -47,7 +47,12 @@ The CSSE at JHU collects the worldwide COVID data since 2020 to 2023. All the ra
 In the data on March 9th, it contains the number of confirmed cases and deaths for each county in US, as well as the incident rate. To perform the data analysis later in this paper, I will only use the COVID cases and deaths in each county.
 
 ## Fox News
-It contains the county-level election results during the 2020 Federal Election. For each county, it contains the number of votes for the demographic and republican party
+
+It contains the county-level election results during the 2020 Federal Election. For each county, it contains the number of votes for the demographic and republican party.
+
+## Mergin the three sources
+
+To predict the COVID death rate across counties with various socio-economic features, I will merge the the five data sets from the above three data sources by the county and state. In the merged data set, each row represent a US county and provides the number of COVID cases and deaths. In addition, it also shows the demographic information such as the total population and voting pattern such as the number of votes for democratic and republican party. To better understand the graph, I will several graphs.
 
 ```{r}
 
