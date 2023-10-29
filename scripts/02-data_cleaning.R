@@ -105,9 +105,9 @@ election_data_clean <- election_data %>%
   select(state, county,votes_gop, votes_dem, total_votes) %>% 
   rename(`votes_rep` = votes_gop)
 election_data_clean <- election_data_clean %>% 
-  mutate(party = case_when(votes_rep > votes_dem ~ "Republican",
-                           votes_rep < votes_dem ~ "Democratic",
-                           TRUE ~ "Equal"))
+  mutate(rep_win = case_when(votes_rep > votes_dem ~ 1,
+                             votes_rep < votes_dem ~ 0,
+                             TRUE ~ 1))
 election_data_clean <- na.omit(election_data_clean)
 
 # Merge the five data sets. The merged data set will be the data in this paper
