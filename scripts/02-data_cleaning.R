@@ -117,6 +117,9 @@ merged_data <- DP02_clean %>%
   inner_join(covid_data_clean, by = c("state", "county")) %>%
   inner_join(election_data_clean, by = c("state", "county"))
 
+merged_data$infection_rate <- (merged_data$cases/merged_data$total_population)*1000
+merged_data$death_rate <- (merged_data$deaths/merged_data$total_population)*1000
+
 # Export all the cleaned data sets and merged data sets
 write.csv(DP02_clean, "outputs/data/DP02_clean.csv", row.names = FALSE)
 write.csv(DP03_clean, "outputs/data/DP03_clean.csv", row.names = FALSE)
