@@ -102,7 +102,12 @@ covid_data_clean <- na.omit(covid_data_clean)
 election_data_clean <- election_data %>% 
   mutate(county = sapply(county_name, extract_county),
          state = unlist(get_state_abbreviation(state_name))) %>% 
-  select(state, county,votes_gop, votes_dem, total_votes)
+  select(state, county,votes_gop, votes_dem, total_votes) %>% 
+  rename(`votes_rep` = votes_gop)
+election_data_clean <- election_data_clean %>% 
+  mutate(party = case_when(votes_rep > votes_dem ~ "Republican",
+                           votes_rep < votes_dem ~ "Democratic",
+                           TRUE ~ "Equal"))
 election_data_clean <- na.omit(election_data_clean)
 
 # Merge the five data sets. The merged data set will be the data in this paper
