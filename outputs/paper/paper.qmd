@@ -1,14 +1,13 @@
 ---
-title: "My title"
-subtitle: "My subtitle if needed"
-author: 
-  - First author
-  - Another author
-thanks: "Code and data are available at: LINK."
-date: "`r Sys.time()`"
-date-format: "D MMMM YYYY"
-abstract: "First sentence. Second sentence. Third sentence. Fourth sentence."
+title: "aaaa"
+title-block-banner: true
+author: "Yiliu Cao"
+thanks: "Code and data from this analysis are available at: https://github.com/yiliuc/Bicycle_Thefts_2023.git"
+date: "today"
+date-format: "long"
+abstract: "sssss"
 format: pdf
+toc: true
 number-sections: true
 bibliography: references.bib
 ---
@@ -20,6 +19,38 @@ bibliography: references.bib
 
 library(tidyverse)
 library(palmerpenguins)
+library(here)
+library(modelsummary)
+library(leaps)
+library(gridExtra)
+library(grid)
+library(usmap)
+library(knitr)
+library(kableExtra)
+
+acs <- read.csv(here("outputs/data/merged_data_acs.csv"))
+acs_covid <- read.csv(here("outputs/data/merged_data_acs_covid.csv"))
+data <- read.csv(here("outputs/data/merged_data_overall.csv"))
+map_data <- read.csv(here("outputs/data/merged_data_overall.csv"))
+data <- data %>%
+  mutate(pctile = ntile(mean_household_income, 100),
+         party = case_when(rep_win == 1 ~ "Republican",
+                             rep_win == 0 ~ "Democratic",
+                             TRUE ~ "A"),
+         rep_rate = (votes_rep/total_votes)*1000) %>% 
+  filter(state != "AK")
+data_model <- data %>% 
+  select(-county, -state, -total_population, -females, -fips, -cases, -deaths,
+         -votes_rep, -votes_dem, -total_votes, -infection_rate, -mean_household_income)
+
+set.seed(0)
+train_indices <- sample(1:nrow(data), 0.7 * nrow(data_model))
+
+# Create the training set
+training_data <- data_model[train_indices, ]
+
+# Create the testing set
+testing_data <- data_model[-train_indices, ]
 ```
 
 # Introduction
@@ -30,7 +61,7 @@ In this paper, I aim to find the variations of death rate across different count
 
 There will be four main parts in this paper: Data, Models, Results, Discussion and Conclusion. In the Data part, I will introduce the data used in this paper and high light the key variables. The Models and Results session will introduce the model that will be used in this paper and the results from it. Moreover, the results will be interpreted and provide the insights about COVID deaths rate. Lastly, I will conclude the entire paper and discussion the limitations and drawbacks.
 
-# Data {#sec-data}
+# Data
 
 In this paper, there are three main sources of data, which are American Community Survey (ACS), The Center for Systems Science and Engineering (CSSE) at John-Hopkins University, Fox News. These three sources contains different dimensional data in predicting the death rate of COVID in each county.
 
@@ -40,81 +71,212 @@ The data from ACS contains the socio-economic information for each county. While
 
 For DP02, it contains the data regarding the social characteristics. In this paper, I will only take the information regarding the educational attainment such as the percentage of residents in each county that have at a least bachelor degree. Compared to DP02, DP03 contains the information about the economic characteristics. To understand the deaths rate in terms of economy, I will grab the information about the proportion of residents with a private insurance, the mean household income and unemployment rate at each county. Finally, DP05 contains the demographic data and housing estimates. In this paper, I will take the total population, proportions of children and people above 85 and percentage of white and black residents.
 
+```{r}
+#| echo: false
+#| message: false
+#| tbl-cap: The summary of important variabls from ACS
+data %>% 
+  select(no_insurance, old_65, prop_higher_education) %>% 
+  datasummary_skim(histogram = FALSE)
+```
 
 ## CSSE at JHU
 The CSSE at JHU collects the worldwide COVID data since 2020 to 2023. All the raw data are available on their CSSE GitHub which can easily access. In particular, the COVID daily report since 2020 for each county on US are listed. However, they stop to update the data after March 9th, 2023 as no significant changes. The COVID data for US used in the paper is data collected on March 9th.
 
 In the data on March 9th, it contains the number of confirmed cases and deaths for each county in US, as well as the incident rate. To perform the data analysis later in this paper, I will only use the COVID cases and deaths in each county.
 
+```{r}
+#| echo: false
+#| message: false
+#| tbl-cap: The summary of infection and death rate of COVID in US
+data %>% 
+  select(infection_rate, death_rate) %>% 
+  datasummary_skim(histogram = FALSE)
+```
+Descriptions here
+
 ## Fox News
 
 It contains the county-level election results during the 2020 Federal Election. For each county, it contains the number of votes for the demographic and republican party.
 
-## Mergin the three sources
-
-To predict the COVID death rate across counties with various socio-economic features, I will merge the the five data sets from the above three data sources by the county and state. In the merged data set, each row represent a US county and provides the number of COVID cases and deaths. In addition, it also shows the demographic information such as the total population and voting pattern such as the number of votes for democratic and republican party. To better understand the graph, I will several graphs.
+To predict the COVID death rate across counties with various socio-economic features, I will merge the the five data sets from the above three data sources by the county and state. In the merged data set, each row represent a US county and provides the number of COVID cases and deaths. In addition, it also shows the demographic information such as the total population and voting pattern such as the number of votes for democratic and republican party. The merged data contains three main parts of the data. In order to show the data better, I will draw some visualizations to show the data.
 
 ```{r}
+#| echo: false
+#| message: false
+#| label: aa
+#| fig-cap: Summary of deaths rate for counties voting for Democratic and Republican
+data  %>%
+  ggplot(mapping = aes(x = party, y = death_rate)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(x = "Voting Party",
+       y = "Death Rate per 1000")
+```
+
+Sumamrise the above plot
+
+```{r plot-chunk, fig.width=8, fig.height=6, out.width="80%"}
+#| echo: false
+#| message: false
+#| fig-cap: Number
+
+# First plot
+plot1 <- plot_usmap(data = acs_covid, values = "death_rate", regions = "counties", exclude = c("AK", "Hawaii")) + 
+  scale_fill_continuous(low = "white", high = "blue", name = "", label = scales::comma) + 
+  labs(subtitle = "Subtitle for Plot 1") +
+  theme(legend.position = "right", plot.title = element_blank())
+
+# Second plot
+plot2 <- plot_usmap(data = data, values = "party", regions = "counties", exclude = "AK") + 
+  scale_fill_manual(values = c("Republican" = "red", "Democratic" = "blue"), 
+                    name = "Party",
+                    breaks = c("Republican", "Democratic")) + 
+  labs(subtitle = "Subtitle for Plot 2") +
+  theme(legend.position = "right", plot.title = element_blank())
+
+# Arrange the plots vertically with a main title
+grid.arrange(plot1, plot2, ncol=1)
 
 ```
 
 Talk more about it.
 
-And also planes (@fig-planes). (You can change the height and width, but don't worry about doing that until you have finished every other aspect of the paper - Quarto will try to make it look nice and the defaults usually work well once you have enough text.)
 
-```{r}
-#| label: fig-planes
-#| fig-cap: Relationship between wing length and width
-#| echo: false
-#| warning: false
-#| message: false
-```
+# Methods
 
-Talk way more about it.
+As I introduced in the introduction, this paper aim to predict the death rate of COVID in each county of US and to detect whether this correlation related to their political preferences. Based on the merged data we have above, I will perform a series of models, from simple to complicated, to detect which predictors are significant in predicting the death rate.
 
-# Model
+## Model Specifics
 
-The goal of our modelling strategy is twofold. Firstly,...
+Before we fit the models, I will split the data into training and testing data. The training data is used to fit all the models and they are tested on the testing model, to see which one performs betters.
 
-Here we briefly describe the Bayesian analysis model used to investigate... Background details and diagnostics are included in [Appendix -@sec-model-details].
+For each OLS regression model, the response variable will always be the death rate of COVID in each county. However, since the deaths rate can be attributed by various perspectives such as demographic and economics, and we also want to see whether it depends on the party they voted during the last Federal Election. I will create two sets of models, which the first set does not consider the political preferences but the second does. In addition, for each sets of model, there will be three models with each one considering only one perspective of predictors, an overall model containing all predictors and one best model based on $R^2_{adj}$ and $RMSE$. That said, I will fit 10 models in total along with two best models. To decide which model is the best one, I will use test them using the testing data, to see which one has a lower testing $RMSE$.
 
-## Model set-up
+In addition to OLS regression models, I will also draw the regression tree and 
 
-Define $y_i$ as the number of seconds that the plane remained aloft. Then $\beta_i$ is the wing width and $\gamma_i$ is the wing length, both measured in millimeters.\
-\[ \begin{align} 
-y_i|\mu_i, \sigma &\sim \mbox{Normal}(\mu_i, \sigma) \\
-\mu_i &= \alpha + \beta_i + \gamma_i\\
-\alpha &\sim \mbox{Normal}(0, 2.5) \\
-\beta &\sim \mbox{Normal}(0, 2.5) \\
-\gamma &\sim \mbox{Normal}(0, 2.5) \\
-\sigma &\sim \mbox{Exponential}(1)
-\end{align} \] We run the model in R [@citeR] using the `rstanarm` package of @rstanarm. We use the default priors from `rstanarm`.
+The general form of the regression models is:
+$$Y=\beta_0+\beta_1 X_1+\cdots+\beta_p X_p+\epsilon$$
+where:
+- $Y$ represents the response variables which is the death rate.
+- $\beta_0$ represents the intercept, which is the death rate holding all variables to zero
+- $\beta_j$ represents the change of death rates with one unit increase in $X_j$
+- $\epsilon$ captures measurement errors and other discrepancies
 
-### Model justification
+## Assumptions of the regression models
+After we fit the linear regression models, it is essential to check the assumptions to ensure the accuracy of our predictions. There are four main assumptions which are linearity, uncorrelated error, constant variance and normality. For the first three assumptions, we can check it by plot the residuals with fitted values. However, we need to plot the Normal QQ plot to check the normality.
 
-We expect a positive relationship between the size of the wings and time spent aloft. In particular...
+## Regression Tree and Importance Matrix
+A regression tree is a type of decision tree used specifically for regression problems, where the goal is to predict a continuous outcome variable based on one or more predictor variables. By using the regression tress, we can explain the decisions, identify possible events that might occur, and see potential outcomes
 
-We can use maths by including latex between dollar signs, for instance $\theta$.
+The objection function of regression tree is:
+
+$$\min_{j,s} \left[  \sum_{i: x_{i,j} \leq s, x_i \in R1}
+    (y_i - \hat{y}_{R1})^2 +  \sum_{i: x_{i,j} > s, x_i \in R2}
+    (y_i - \hat{y}_{R2})^2 \right]$$
+
+The objective function is to minimize the squared error. The $j, s$ represents the index of the variable and threshold, respectively. In my regression tree, the two regions, R_1 and R_2, are split by the percentage of the White population in 2020, and the threshold here is 0.094. This means all the rows with the percentage of White people in 2020 less or equal to 0.094 are assigned to R1; otherwise, the rest are assigned to R2. In addition, the $\hat{y}_{R1}$ and $\hat{y}_{R1}$ represent the mean value of the y in each region. According to the regression tree, we can observe that the mean change of percentage vote for Trump is 0.157 and 0.015, which are the values of $\hat{y}_{R1}$ and $\hat{y}_{R2}$.
+
+In addition to regression trees, we can also use the importance matrix which can tell us which predictors are important in predicting the death rate for each county. It can help us to verify our final model.
 
 # Results
 
-Our results are summarized in @tbl-modelresults.
-
 ```{r}
 #| echo: false
-#| eval: true
-#| warning: false
 #| message: false
+#| label: first-model
+#| tbl-cap: Summary of the Best Model Without Politics Preference 
 
+# Creating the Model
+best1 <- lm(death_rate ~ prop_higher_education + pctile + no_insurance +
+               males + old_85 + white_pct + black_pct, 
+            data = training_data)
+
+broom::tidy(best1) %>% 
+  mutate(predictors = c("(Intercept)", as.character(attr(terms(best1), "term.labels"))),
+         estimate = round(estimate, 2),
+         std.error = round(std.error, 2),
+         statistic = round(statistic, 2),
+         p.value = round(p.value, 3)) %>% 
+  select(predictors,
+         estimate,
+         std.error,
+         statistic,
+         p.value) %>% 
+  rename(`Predictor` = predictors,
+         `Estimate` = estimate,
+         `Standard Error` = std.error,
+         `Statistics` = statistic,
+         `P-value` = p.value) %>% 
+  kable(format = "latex")
 ```
+@first-model shows the summary table for the model without political references. Using the above information, we can write the equation model:
+
+\begin{align*}
+\text{Death Rate} &=  7.23 \\
+& - 0.05 \times \text{prop\_higher\_education} \\
+& - 0.02 \times \text{pctile} \\
+& + 0.07 \times \text{no\_insurance} \\
+& - 0.06 \times \text{males} \\
+& + 0.29 \times \text{old\_85} \\
+& + 0.01 \times \text{white\_pct} \\
+& + 0.01 \times \text{black\_pct}
+\end{align*}
+
+Based on the above model, holding all variables to be zero, the expected deaths rate is about 7.2 per 1000. Holding other variables fixed, with one percent in the proportion of people who has at least bachelor degree, the death rate is expected to increase by 0.05. In addition, with income percentile increases by one, the death rate is expected to decrease by 0.02. Unsurprisingly, there is a negative relationship between the proportion of people with no insurance and death rate, 0.7 more people might die if the ratio of people living in a county without insurance increase by 10%. In terms of demographic factors, the number of death is inversely correlated with the number of males in a county. One percent increase in the males will result 0.06 less death. Moreover, it seems that old people are more likely to be died by COVID. That said, 0.29 more death if one percent increase in the proportion of people aged above 85. Lastly, one percent increase in the proportion of white and black people are both expected to have 0.01 more death.
 
 ```{r}
 #| echo: false
-#| eval: true
-#| label: tbl-modelresults
-#| tbl-cap: "Explanatory models of flight time based on wing width and wing length"
-#| warning: false
+#| message: false
+#| label: second-model
+#| tbl-cap: Summary of the Best Model With Politics Preference 
+
+# Creating the Model
+best2 <- lm(death_rate ~ rep_rate + rep_win * prop_higher_education + pctile + 
+                 private_insurance  + no_insurance +
+                 males + old_85  + rep_win*white_pct + 
+                 black_pct, data = training_data)
+
+broom::tidy(best2) %>% 
+  mutate(predictors = c("(Intercept)", as.character(attr(terms(best2), "term.labels"))),
+         estimate = round(estimate, 2),
+         std.error = round(std.error, 2),
+         statistic = round(statistic, 2),
+         p.value = round(p.value, 3)) %>% 
+  select(predictors,
+         estimate,
+         std.error,
+         statistic,
+         p.value) %>% 
+  rename(`Predictor` = predictors,
+         `Estimate` = estimate,
+         `Standard Error` = std.error,
+         `Statistics` = statistic,
+         `P-value` = p.value) %>% 
+  knitr::kable()
 ```
+
+@second-model shows the summary of the best model without and with the political preferences. Based on them, we can write the regression question
+
+
+\begin{align*}
+\text{Death Rate} &=  7.7507490 \\
+& + 0.0034980 \times \text{Rep\_Rate} \\
+& - 0.4972847 \times \text{Rep\_Win} \\
+& - 0.0120727 \times \text{Prop\_Higher\_Education} \\
+& - 0.0099034 \times \text{Pctile} \\
+& - 0.0284321 \times \text{Private\_Insurance} \\
+& + 0.0281570 \times \text{No\_Insurance} \\
+& - 0.0593644 \times \text{Males} \\
+& + 0.3024402 \times \text{Old\_85} \\
+& - 0.0169198 \times \text{White\_Pct} \\
+& + 0.0130027 \times \text{Black\_Pct} \\
+& - 0.0172526 \times \text{Rep\_Win:Prop\_Higher\_Education} \\
+& + 0.0125389 \times \text{Rep\_Win:White\_Pct}
+\end{align*}
+
+The difference between the second and the first model is that the 
+
 
 # Discussion
 
@@ -131,6 +293,53 @@ If my paper were 10 pages, then should be be at least 2.5 pages. The discussion 
 Weaknesses and next steps should also be included.
 
 \newpage
+
+# Appendix {-}
+## Model details
+```{r}
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+
+# data_model$mean_household_income <- log(data_model$mean_household_income)
+
+social1 <- lm(death_rate ~ prop_higher_education, data = training_data)
+economic1 <- lm(death_rate ~ pctile + unemployment + no_insurance +
+                             private_insurance + public_insurance, 
+                data = training_data)
+demographic1 <- lm(death_rate ~ males + old_85 + children + old_65 +
+                                white_pct + black_pct, data = training_data)
+overall1 <- lm(death_rate ~ .-rep_win - party - rep_rate, data = training_data)
+best1 <- lm(death_rate ~ prop_higher_education + pctile + no_insurance +
+               males + old_85 + white_pct + black_pct, 
+            data = training_data)
+modelsummary(list(social1, economic1, demographic1, overall1, best1), stars=TRUE)
+```
+
+```{r}
+#| echo: false
+#| eval: true
+#| label: tbl-modelresults
+#| tbl-cap: "Explanatory models of flight time based on wing width and wing length"
+#| warning: false
+
+social2 <- lm(death_rate ~ rep_rate + rep_win * prop_higher_education, data = training_data)
+economic2 <- lm(death_rate ~ rep_rate + pctile + unemployment + no_insurance +
+                             rep_win*private_insurance + public_insurance, 
+                data = training_data)
+demographic2 <- lm(death_rate ~ rep_rate + males + old_85 + children + old_65 +
+                                rep_win*white_pct + black_pct, data = training_data)
+overall2 <- lm(death_rate ~ rep_rate + rep_win * prop_higher_education + pctile + 
+                 unemployment + rep_win*private_insurance + public_insurance + no_insurance +
+                 males + old_85 + children + old_65 + rep_win*white_pct + 
+                 black_pct, data = training_data)
+best2 <- lm(death_rate ~ rep_rate + rep_win * prop_higher_education + pctile + 
+                 private_insurance  + no_insurance +
+                 males + old_85  + rep_win*white_pct + 
+                 black_pct, data = training_data)
+modelsummary(list(social2, economic2, demographic2, overall2, best2), stars=TRUE)
+```
 
 \newpage
 
