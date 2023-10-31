@@ -37,11 +37,13 @@ data <- data %>%
          party = case_when(rep_win == 1 ~ "Republican",
                              rep_win == 0 ~ "Democratic",
                              TRUE ~ "A"),
-         rep_rate = (votes_rep/total_votes)*1000) %>% 
+         rep_rate = (votes_rep/total_votes)*1000,
+         high_income = case_when(pctile > 50 ~ 1,
+                                 TRUE ~ 0)) %>% 
   filter(state != "AK")
 data_model <- data %>% 
   select(-county, -state, -total_population, -females, -fips, -cases, -deaths,
-         -votes_rep, -votes_dem, -total_votes, -infection_rate, -mean_household_income)
+         -votes_rep, -votes_dem, -total_votes, -infection_rate, -mean_household_income, -old_65)
 
 set.seed(0)
 train_indices <- sample(1:nrow(data), 0.7 * nrow(data_model))
@@ -116,7 +118,7 @@ data  %>%
 
 Sumamrise the above plot
 
-```{r plot-chunk, fig.width=8, fig.height=6, out.width="80%"}
+```{r plot-chunk, fig.width=8, fig.height=6, out.width="100%"}
 #| echo: false
 #| message: false
 #| fig-cap: Number
@@ -128,7 +130,7 @@ plot1 <- plot_usmap(data = acs_covid, values = "death_rate", regions = "counties
   theme(legend.position = "right", plot.title = element_blank())
 
 # Second plot
-plot2 <- plot_usmap(data = data, values = "party", regions = "counties", exclude = "AK") + 
+plot2 <- plot_usmap(data = data, values = "party", regions = "counties", exclude = "AK", "Hawaii") + 
   scale_fill_manual(values = c("Republican" = "red", "Democratic" = "blue"), 
                     name = "Party",
                     breaks = c("Republican", "Democratic")) + 
@@ -181,6 +183,87 @@ In addition to regression trees, we can also use the importance matrix which can
 
 # Results
 
+
+@first-model shows the summary table for the model without political references. Using the above information, we can write the equation model:
+
+```{r}
+model1 <- lm(death_rate ~ prop_higher_education + pctile + no_insurance + private_insurance + males + old_85 + white_pct + black_pct, data = training_data)
+summary(model1)
+```
+
+```{r}
+model2 <- lm(death_rate ~ rep_rate + prop_higher_education + pctile + 
+                 private_insurance  + no_insurance +
+                 males + old_85  + white_pct + 
+                 black_pct, data = training_data)
+summary(model2)
+```
+
+\begin{align*}
+\text{Death Rate} &=  7.23 \\
+& - 0.05 \times \text{prop\_higher\_education} \\
+& - 0.02 \times \text{pctile} \\
+& + 0.07 \times \text{no\_insurance} \\
+& - 0.06 \times \text{males} \\
+& + 0.29 \times \text{old\_85} \\
+& + 0.01 \times \text{white\_pct} \\
+& + 0.01 \times \text{black\_pct}
+\end{align*}
+
+Based on the above model, holding all variables to be zero, the expected deaths rate is about 7.2 per 1000. Holding other variables fixed, with one percent in the proportion of people who has at least bachelor degree, the death rate is expected to increase by 0.05. In addition, with income percentile increases by one, the death rate is expected to decrease by 0.02. Unsurprisingly, there is a negative relationship between the proportion of people with no insurance and death rate, 0.7 more people might die if the ratio of people living in a county without insurance increase by 10%. In terms of demographic factors, the number of death is inversely correlated with the number of males in a county. One percent increase in the males will result 0.06 less death. Moreover, it seems that old people are more likely to be died by COVID. That said, 0.29 more death if one percent increase in the proportion of people aged above 85. Lastly, one percent increase in the proportion of white and black people are both expected to have 0.01 more death.
+
+
+@second-model shows the summary of the best model without and with the political preferences. Based on them, we can write the regression question
+
+
+\begin{align*}
+\text{Death Rate} &=  7.75 \\
+& + 0.0034980 \times \text{Rep\_Rate} \\
+& - 0.4972847 \times \text{Rep\_Win} \\
+& - 0.0120727 \times \text{Prop\_Higher\_Education} \\
+& - 0.0099034 \times \text{Pctile} \\
+& - 0.0284321 \times \text{Private\_Insurance} \\
+& + 0.0281570 \times \text{No\_Insurance} \\
+& - 0.0593644 \times \text{Males} \\
+& + 0.3024402 \times \text{Old\_85} \\
+& - 0.0169198 \times \text{White\_Pct} \\
+& + 0.0130027 \times \text{Black\_Pct} \\
+& - 0.0172526 \times \text{Rep\_Win:Prop\_Higher\_Education} \\
+& + 0.0125389 \times \text{Rep\_Win:White\_Pct}
+\end{align*}
+
+The difference between the second and the first model is that the second model includes the political preference for each county as one predictor to predict the death rate due to COVID. Holding other variables, we can see that every 100 more votes for republican party, 0.3 more people are expected to dead. In addition, if the county votes for the Republican, then it is expected to have 
+
+
+# Discussion
+
+## The impact of political preference on death rate is more significant than expected.
+
+If my paper were 10 pages, then should be be at least 2.5 pages. The discussion is a chance to show off what you know and what you learnt from all this.
+
+## However, the socio-economic variables especially the private insurance, also play an important role.
+
+## The importantance matrix matches our models
+
+## Weaknesses and next steps
+
+Weaknesses and next steps should also be included.
+
+\newpage
+
+# Appendix {-}
+
+## Model details
+
+aaa
+
+
+
+ojnoj
+
+
+klmko
+
 ```{r}
 #| echo: false
 #| message: false
@@ -188,9 +271,7 @@ In addition to regression trees, we can also use the importance matrix which can
 #| tbl-cap: Summary of the Best Model Without Politics Preference 
 
 # Creating the Model
-best1 <- lm(death_rate ~ prop_higher_education + pctile + no_insurance +
-               males + old_85 + white_pct + black_pct, 
-            data = training_data)
+best1 <- lm(death_rate ~ prop_higher_education + pctile + no_insurance + private_insurance + males + old_85 + white_pct + black_pct, data = training_data)
 
 broom::tidy(best1) %>% 
   mutate(predictors = c("(Intercept)", as.character(attr(terms(best1), "term.labels"))),
@@ -210,20 +291,10 @@ broom::tidy(best1) %>%
          `P-value` = p.value) %>% 
   kable(format = "latex")
 ```
-@first-model shows the summary table for the model without political references. Using the above information, we can write the equation model:
 
-\begin{align*}
-\text{Death Rate} &=  7.23 \\
-& - 0.05 \times \text{prop\_higher\_education} \\
-& - 0.02 \times \text{pctile} \\
-& + 0.07 \times \text{no\_insurance} \\
-& - 0.06 \times \text{males} \\
-& + 0.29 \times \text{old\_85} \\
-& + 0.01 \times \text{white\_pct} \\
-& + 0.01 \times \text{black\_pct}
-\end{align*}
+j jnjn
 
-Based on the above model, holding all variables to be zero, the expected deaths rate is about 7.2 per 1000. Holding other variables fixed, with one percent in the proportion of people who has at least bachelor degree, the death rate is expected to increase by 0.05. In addition, with income percentile increases by one, the death rate is expected to decrease by 0.02. Unsurprisingly, there is a negative relationship between the proportion of people with no insurance and death rate, 0.7 more people might die if the ratio of people living in a county without insurance increase by 10%. In terms of demographic factors, the number of death is inversely correlated with the number of males in a county. One percent increase in the males will result 0.06 less death. Moreover, it seems that old people are more likely to be died by COVID. That said, 0.29 more death if one percent increase in the proportion of people aged above 85. Lastly, one percent increase in the proportion of white and black people are both expected to have 0.01 more death.
+
 
 ```{r}
 #| echo: false
@@ -232,9 +303,9 @@ Based on the above model, holding all variables to be zero, the expected deaths 
 #| tbl-cap: Summary of the Best Model With Politics Preference 
 
 # Creating the Model
-best2 <- lm(death_rate ~ rep_rate + rep_win * prop_higher_education + pctile + 
+best2 <- lm(death_rate ~ rep_rate + prop_higher_education + pctile + 
                  private_insurance  + no_insurance +
-                 males + old_85  + rep_win*white_pct + 
+                 males + old_85  + white_pct + 
                  black_pct, data = training_data)
 
 broom::tidy(best2) %>% 
@@ -256,51 +327,10 @@ broom::tidy(best2) %>%
   knitr::kable()
 ```
 
-@second-model shows the summary of the best model without and with the political preferences. Based on them, we can write the regression question
-
-
-\begin{align*}
-\text{Death Rate} &=  7.7507490 \\
-& + 0.0034980 \times \text{Rep\_Rate} \\
-& - 0.4972847 \times \text{Rep\_Win} \\
-& - 0.0120727 \times \text{Prop\_Higher\_Education} \\
-& - 0.0099034 \times \text{Pctile} \\
-& - 0.0284321 \times \text{Private\_Insurance} \\
-& + 0.0281570 \times \text{No\_Insurance} \\
-& - 0.0593644 \times \text{Males} \\
-& + 0.3024402 \times \text{Old\_85} \\
-& - 0.0169198 \times \text{White\_Pct} \\
-& + 0.0130027 \times \text{Black\_Pct} \\
-& - 0.0172526 \times \text{Rep\_Win:Prop\_Higher\_Education} \\
-& + 0.0125389 \times \text{Rep\_Win:White\_Pct}
-\end{align*}
-
-The difference between the second and the first model is that the 
-
-
-# Discussion
-
-## First discussion point {#sec-first-point}
-
-If my paper were 10 pages, then should be be at least 2.5 pages. The discussion is a chance to show off what you know and what you learnt from all this.
-
-## Second discussion point
-
-## Third discussion point
-
-## Weaknesses and next steps
-
-Weaknesses and next steps should also be included.
-
-\newpage
-
-# Appendix {-}
-## Model details
 ```{r}
 #| echo: false
-#| eval: true
-#| warning: false
 #| message: false
+#| tbl-cap: Summary of the set of models with political preferences
 
 # data_model$mean_household_income <- log(data_model$mean_household_income)
 
@@ -308,35 +338,32 @@ social1 <- lm(death_rate ~ prop_higher_education, data = training_data)
 economic1 <- lm(death_rate ~ pctile + unemployment + no_insurance +
                              private_insurance + public_insurance, 
                 data = training_data)
-demographic1 <- lm(death_rate ~ males + old_85 + children + old_65 +
+demographic1 <- lm(death_rate ~ males + old_85 + children +
                                 white_pct + black_pct, data = training_data)
 overall1 <- lm(death_rate ~ .-rep_win - party - rep_rate, data = training_data)
-best1 <- lm(death_rate ~ prop_higher_education + pctile + no_insurance +
-               males + old_85 + white_pct + black_pct, 
-            data = training_data)
+best1 <- lm(death_rate ~ prop_higher_education + pctile + no_insurance + private_insurance + males + old_85 + white_pct + black_pct, data = training_data)
 modelsummary(list(social1, economic1, demographic1, overall1, best1), stars=TRUE)
 ```
 
 ```{r}
 #| echo: false
-#| eval: true
+#| message: false
 #| label: tbl-modelresults
-#| tbl-cap: "Explanatory models of flight time based on wing width and wing length"
-#| warning: false
+#| tbl-cap: Summary of the set of models with political preferences
 
-social2 <- lm(death_rate ~ rep_rate + rep_win * prop_higher_education, data = training_data)
+social2 <- lm(death_rate ~ rep_rate + prop_higher_education, data = training_data)
 economic2 <- lm(death_rate ~ rep_rate + pctile + unemployment + no_insurance +
-                             rep_win*private_insurance + public_insurance, 
+                             private_insurance + public_insurance, 
                 data = training_data)
-demographic2 <- lm(death_rate ~ rep_rate + males + old_85 + children + old_65 +
-                                rep_win*white_pct + black_pct, data = training_data)
-overall2 <- lm(death_rate ~ rep_rate + rep_win * prop_higher_education + pctile + 
-                 unemployment + rep_win*private_insurance + public_insurance + no_insurance +
-                 males + old_85 + children + old_65 + rep_win*white_pct + 
+demographic2 <- lm(death_rate ~ rep_rate + males + old_85 + children +
+                                white_pct + black_pct, data = training_data)
+overall2 <- lm(death_rate ~ rep_rate + prop_higher_education + pctile + 
+                 unemployment + private_insurance + public_insurance + no_insurance +
+                 males + old_85 + children + white_pct + 
                  black_pct, data = training_data)
-best2 <- lm(death_rate ~ rep_rate + rep_win * prop_higher_education + pctile + 
+best2 <- lm(death_rate ~ rep_rate + prop_higher_education + pctile + 
                  private_insurance  + no_insurance +
-                 males + old_85  + rep_win*white_pct + 
+                 males + old_85  + white_pct + 
                  black_pct, data = training_data)
 modelsummary(list(social2, economic2, demographic2, overall2, best2), stars=TRUE)
 ```
