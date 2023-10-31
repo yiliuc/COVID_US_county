@@ -94,7 +94,8 @@ covid_data_clean <- covid_data %>%
          `state` = Province_State,
          `cases` = Confirmed) %>%
   mutate(state = get_state_abbreviation(state)) %>% 
-  clean_names()
+  clean_names() %>% 
+  mutate(county = if_else(state == "LA", paste0(county, " Parish"), county))
 
 covid_data_clean <- na.omit(covid_data_clean)
 
@@ -105,20 +106,37 @@ election_data_clean <- election_data %>%
   select(state, county,votes_gop, votes_dem, total_votes) %>% 
   rename(`votes_rep` = votes_gop)
 election_data_clean <- election_data_clean %>% 
-  mutate(rep_win = case_when(votes_rep > votes_dem ~ 1,
+  mutate(county = if_else(state == "LA", paste0(county, " Parish"), county),
+         rep_win = case_when(votes_rep > votes_dem ~ 1,
                              votes_rep < votes_dem ~ 0,
                              TRUE ~ 1))
 election_data_clean <- na.omit(election_data_clean)
 
 # Merge the five data sets. The merged data set will be the data in this paper
-merged_data <- DP02_clean %>%
+merged_data_acs <- DP02_clean %>%
   inner_join(DP03_clean, by = c("state", "county")) %>%
-  inner_join(DP05_clean, by = c("state", "county")) %>%
-  inner_join(covid_data_clean, by = c("state", "county")) %>%
+  inner_join(DP05_clean, by = c("state", "county"))
+merged_data_acs_covid <- merged_data_acs %>% 
+  inner_join(covid_data_clean, by = c("state", "county"))
+merged_data_overall <- merged_data_acs_covid %>% 
   inner_join(election_data_clean, by = c("state", "county"))
 
-merged_data$infection_rate <- (merged_data$cases/merged_data$total_population)*1000
-merged_data$death_rate <- (merged_data$deaths/merged_data$total_population)*1000
+
+unique_rows_DP05 <- DP05_clean %>%
+  anti_join(election_data_clean, by = c("state", "county"))
+
+unique_rows_election <- election_data_clean %>%
+  anti_join(covid_data_clean, by = c("state", "county"))
+
+unique_rows_covid <- covid_data_clean %>%
+  anti_join(election_data_clean, by = c("state", "county"))
+
+
+
+merged_data_acs_covid$infection_rate <- (merged_data_acs_covid$cases/merged_data_acs_covid$total_population)*1000
+merged_data_acs_covid$death_rate <- (merged_data_acs_covid$deaths/merged_data_acs_covid$total_population)*1000
+merged_data_overall$infection_rate <- (merged_data_overall$cases/merged_data_overall$total_population)*1000
+merged_data_overall$death_rate <- (merged_data_overall$deaths/merged_data_overall$total_population)*1000
 
 # Export all the cleaned data sets and merged data sets
 write.csv(DP02_clean, "outputs/data/DP02_clean.csv", row.names = FALSE)
@@ -128,4 +146,6 @@ write.csv(covid_data_clean,
           "outputs/data/covid_data_clean.csv", row.names = FALSE)
 write.csv(election_data_clean, 
           "outputs/data/election_data_clean.csv", row.names = FALSE)
-write.csv(merged_data, "outputs/data/merged_data.csv", row.names = FALSE)
+write.csv(merged_data_acs, "outputs/data/merged_data_acs.csv", row.names = FALSE)
+write.csv(merged_data_acs_covid, "outputs/data/merged_data_acs_covid.csv", row.names = FALSE)
+write.csv(merged_data_overall, "outputs/data/merged_data_overall.csv", row.names = FALSE)
