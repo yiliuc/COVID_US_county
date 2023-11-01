@@ -61,15 +61,15 @@ testing_data <- data_model[-train_indices, ]
 
 On May 23rd, the WHO's Director-General, Dr. Tedros Adhanom Ghebreyesus, announced the end of the COVID-19 pandemic, declaring that the virus was no longer considered a global threat. This marked the official end of the pandemic that spanned three years. Over this period, nearly 7.6 billion people got infected, and approximately 6.9 million succumbed to the disease. The US seems to be one of the countries that have been influenced by COVID-19 the most, with about 1.1 million dead and 104 million infections. The mortality rate of COVID-19 in the US is about 3.41 per 1,000, which is significantly higher than in other western developed countries. Interestingly, the pandemic began around the time of the 2020 Federal Election and unfolded entirely during President Biden's term. As another Federal Election looms next year, it is worth knowing how the COVID deaths are related to socio-economic indicators. There's also speculation about the role of political preferences. Analyzing these connections could provide insights to better prepare for and prevent future health crises, especially as we navigate the post-pandemic period.
 
-To understand and explore the COVID death rate, I will use five data sets from three different sources. American Community Survey [citation] collects the socio-economic information for each county, such as the mean household income. The Johns Hopkins University's public data set [citation] presents data on COVID-19 cases and deaths by county. Regarding electoral data, Fox News have comprehensive records of the 2020 US Federal Election, providing the vote counts for each party across all counties. These data can help us to assess the inequality of mortality caused by COVID across different countries. 
+To understand and explore the COVID death rate, I will use five data sets from three different sources. American Community Survey [@acs] collects the socio-economic information for each county, such as the mean household income. The Center for Systems Science and Engineering (CSSE) at John Hopkins University [@jhu] presents data on COVID-19 cases and deaths by county. Regarding electoral data, Fox News have comprehensive records of the 2020 US Federal Election, providing the vote counts for each party across all counties. These data can help us to assess the inequality of mortality caused by COVID across different countries. 
 
-My analysis will be focused on the variations of death rates across different counties to see how the counties with different socio-economic factors will affect the COVID-19 deaths. Moreover, I will incorporate a political dimension, especifically the voting rate in support of the Republican party in each county, to see whether a higher proportion of Republican voters in a county correlates with the COVID-19 death rate. Through this paper, I aim to construct a model where the COVID-19 death rate is the dependent variable and includes only those predictors that are statistically significant. This study can help US citizens understand the factors affecting the death rate and inform their voting decisions in 2024.
+My analysis will be focused on the variations of death rates across different counties to see how the counties with different socio-economic factors will affect the COVID-19 deaths. Moreover, I will incorporate a political dimension, especially the voting rate in support of the Republican party in each county, to see whether a higher proportion of Republican voters in a county correlates with the COVID-19 death rate. Through this paper, I aim to construct a model where the COVID-19 death rate is the dependent variable and includes only those predictors that are statistically significant. This study can help US citizens understand the factors affecting the death rate and inform their voting decisions in 2024.
 
 There will be five main parts in this paper. In the [Data] part, I will introduce the data used in this paper and highlight the key variables. The [Methods] and [Results] parts will introduce the methods used in this paper and the corresponding results. Moreover, the results will be interpreted and provide insights about the COVID-19 death rate in the [Discussion] part. Lastly, I will conclude the entire paper and discuss the limitations and drawbacks.
 
 # Data
 
-As introduced in the introduction, there are three primary sources of data in the data: the American Community Survey (ACS), The Center for Systems Science and Engineering (CSSE) at John Hopkins University [citation], and Fox News [citation]. Each source provides distinct data dimensions that contribute to predicting the COVID-19 death rate in each US county.
+As introduced in the introduction, there are three primary sources of data in the data: the American Community Survey (ACS) [@acs], The Center for Systems Science and Engineering (CSSE) at John Hopkins University [@jhu], and Fox News [@fox]. Each source provides distinct data dimensions that contribute to predicting the COVID-19 death rate in each US county.
 
 ## American Community Survey (ACS)
 
@@ -105,13 +105,13 @@ data %>%
 
 ### Fox News
 
-Fox News has posted the 2020 Election data, which was collected by Tony McGovern [citation]. It contains the county-level election results during the 2020 Federal Election. For each county, it includes the number of votes for the demographic and republican party, as well as the total votes.
+Fox News has posted the 2020 Election data, which was collected by Tony McGovern [@mcgovern]. It contains the county-level election results during the 2020 Federal Election. For each county, it includes the number of votes for the demographic and republican party, as well as the total votes.
 
 ## Data Cleaning
 
 All data was collected and cleaned using the statistical programming language `R` [@R]. The packages used are `tidyverse` [@tidyverse], `dplyr` [@dplyr], `stringr` [@stringr], and `janitor` [@janitor]. Besides, `here` [@here], `modelsummary` [@modelsummary], `girdExtra` [@gridExtra], `usmap` [@usmap], `knitr` [@knitr], `kableExtra` [@kableExtra] are used to analyze the data.
 
-The way to clean each data set is different. For all the ACS data, I downloaded them using ACS API [citation] and only extracted the necessary variables using the codebook published by ACS [citation]. Additionally, I standardized the county names and transformed state names into their abbreviated forms. Regarding the COVID data sourced from JHU, I only select the cases and death numbers of US counties. Lastly, for the election data, I not only extracted the county name and transformed the state name to its abbreviation form but also calculated the number of people voting for the Republican party per 1000 voters.
+The way to clean each data set is different. For all the ACS data, I downloaded them using ACS API [@acs_api] and only extracted the necessary variables using the codebook published by ACS [@acs_codebook]. Additionally, I standardized the county names and transformed state names into their abbreviated forms. Regarding the COVID data sourced from JHU, I only select the cases and death numbers of US counties. Lastly, for the election data, I not only extracted the county name and transformed the state name to its abbreviation form but also calculated the number of people voting for the Republican party per 1000 voters.
 
 After cleaning each data set, I merge the five data sets by county and state. Based on the merged data set, I calculate the infection and death number per 1000 residents in each county. Therefore, each row in the merged data represents a US county and provides demographic information such as the total population. In addition, the data also contains the voting pattern in each county. The @tbl-summary_variables summarizes all the important variables in this paper.
 
@@ -211,6 +211,40 @@ plot2 <- plot_usmap(data = data, values = "death_rate", regions = "counties", ex
 library(cowplot)
 
 plot_grid(plot1, plot2, ncol = 1, align = "v", rel_heights = c(1,1))
+```
+
+```{r}
+#| include: false
+library(ggplot2)
+library(maps)
+states <- map_data("state")
+counties <- map_data("county")
+state_map <- data.frame(state.name = tolower(state.name), state.abb = state.abb)
+counties$region <- state_map$state.abb[match(counties$region, state_map$state.name)]
+counties$subregion <- tools::toTitleCase(counties$subregion)
+
+mer <- merge(counties, data, by.x=c("subregion", "region"), by.y=c("county", "state"), all.x = TRUE)
+mer$death_rate[is.na(mer$death_rate)] <- 0
+
+ggplot(data=mer, mapping=aes(x=long, y=lat, group=group, fill=death_rate)) + 
+  geom_polygon(color="black") +
+  scale_fill_gradient(low="white", high="blue", name="Income") + 
+  ggtitle('U.S. Map with Income by County') + 
+  theme_minimal() + 
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), axis.ticks.x=element_blank(),
+        axis.title.y=element_blank(), axis.text.y=element_blank(), axis.ticks.y=element_blank()) +
+  coord_fixed(1.3)
+
+ggplot(mer, aes(x=long, y=lat, group=group)) + 
+  geom_polygon(color="black", fill="gray") +
+  coord_map() +
+  theme_minimal()
+
+duplicated_rows <- data[duplicated(data[c("county", "state")]),]
+if (nrow(duplicated_rows) > 0) {
+  print("There are duplicated rows!")
+  print(duplicated_rows)
+}
 ```
 
 To better understand the distribution of death rate from a geography perspective, @fig-map compares the support for Republicans with the corresponding death rate by plotting them onto maps. From the graph, we can observe that the dark color corresponds to the dark blue, meaning that the counties voting for the Republican seem to have a higher death rate than those voting for the Democratic Party. This pattern is especially significant for the central states.
