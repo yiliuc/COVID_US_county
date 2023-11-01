@@ -18,28 +18,30 @@ bibliography: references.bib
 #| message: false
 
 library(tidyverse)
-library(palmerpenguins)
 library(here)
 library(modelsummary)
-library(leaps)
 library(gridExtra)
-library(grid)
 library(usmap)
 library(knitr)
 library(kableExtra)
+library(purrr)
 
 acs <- read.csv(here("outputs/data/merged_data_acs.csv"))
 acs_covid <- read.csv(here("outputs/data/merged_data_acs_covid.csv"))
 data <- read.csv(here("outputs/data/merged_data_overall.csv"))
 map_data <- read.csv(here("outputs/data/merged_data_overall.csv"))
+election_data <- read.csv(here("outputs/data/election_data_clean.csv"))
 data <- data %>%
   mutate(pctile = ntile(mean_household_income, 100),
          party = case_when(rep_win == 1 ~ "Republican",
                              rep_win == 0 ~ "Democratic",
                              TRUE ~ "A"),
-         rep_rate = (votes_rep/total_votes)*1000,
          high_income = case_when(pctile > 50 ~ 1,
-                                 TRUE ~ 0)) %>% 
+                                 TRUE ~ 0),
+         age_85 = old_85,
+         high_education = prop_higher_education,
+         white = white_pct,
+         black = black_pct) %>% 
   filter(state != "AK")
 data_model <- data %>% 
   select(-county, -state, -total_population, -females, -fips, -cases, -deaths,
@@ -67,7 +69,11 @@ There will be four main parts in this paper: Data, Models, Results, Discussion a
 
 In this paper, there are three main sources of data, which are American Community Survey (ACS), The Center for Systems Science and Engineering (CSSE) at John-Hopkins University, Fox News. These three sources contains different dimensional data in predicting the death rate of COVID in each county.
 
-## American Community Survey (ACS)
+## Source of Data
+
+This paper will use five data sets from three different sources. They are shown below.
+
+### American Community Survey (ACS)
 
 The data from ACS contains the socio-economic information for each county. While there are many tables from ACS, I will only take three of them which are DP02, DP03 and DP05. All the tables are the 2021 five-year ACS estimates
 
@@ -78,11 +84,12 @@ For DP02, it contains the data regarding the social characteristics. In this pap
 #| message: false
 #| tbl-cap: The summary of important variabls from ACS
 data %>% 
-  select(no_insurance, old_65, prop_higher_education) %>% 
+  select(no_insurance, age_85, high_education) %>% 
   datasummary_skim(histogram = FALSE)
 ```
 
-## CSSE at JHU
+### CSSE at JHU
+
 The CSSE at JHU collects the worldwide COVID data since 2020 to 2023. All the raw data are available on their CSSE GitHub which can easily access. In particular, the COVID daily report since 2020 for each county on US are listed. However, they stop to update the data after March 9th, 2023 as no significant changes. The COVID data for US used in the paper is data collected on March 9th.
 
 In the data on March 9th, it contains the number of confirmed cases and deaths for each county in US, as well as the incident rate. To perform the data analysis later in this paper, I will only use the COVID cases and deaths in each county.
@@ -95,18 +102,66 @@ data %>%
   select(infection_rate, death_rate) %>% 
   datasummary_skim(histogram = FALSE)
 ```
+
 Descriptions here
 
-## Fox News
+### Fox News
 
 It contains the county-level election results during the 2020 Federal Election. For each county, it contains the number of votes for the demographic and republican party.
 
-To predict the COVID death rate across counties with various socio-economic features, I will merge the the five data sets from the above three data sources by the county and state. In the merged data set, each row represent a US county and provides the number of COVID cases and deaths. In addition, it also shows the demographic information such as the total population and voting pattern such as the number of votes for democratic and republican party. The merged data contains three main parts of the data. In order to show the data better, I will draw some visualizations to show the data.
+## Data Cleaning
+
+All data was collected and cleaned using the statistical programming language `R` \[citation\]. The packages used are `tidyverse` \[citation\], `dplyr` \[citation\], `stringr` \[citation\] and `janitor` \[citation\]. Besides, `here` \[citation\], `modelsummary` \[citation\], `girdExtra` \[citation\], `usmap` \[citation\], `knitr` \[citation\], `kableExtra` \[citation\] are used to analyse the data.
+
+The procedure to clean the three sources of data are different. For all the ACS data downloaded using ACS API \[citation\], referring to the codebook published by ACS \[citation\], I only extract the necessary variables. Besides, I clean the name for each county and convert the state name to its abbreviation form. In terms of the COVID data from JHU, I only select the cases and deaths and filter only the counties in US. Lastly for the election data, I extract the county name and also transform the state name to its abbreviation form. I also calculate the number of people voting for Republican party per 1000 voters.
+
+After cleaned each data set, I merge the the five data sets from the above three data sources by the county and state. Based on the merged data set, I calculate the infection and death number per 1000 residents in each county. Therefore, each row in the merged data represent a US county and provides the the demographic information such as the total population. In addition, the data also contains the voting pattern in each county such as the number of votes for democratic and republican party.
 
 ```{r}
 #| echo: false
 #| message: false
-#| label: aa
+#| label: tbl-summary_variables
+#| tbl-cap: Summary of important variables in the model
+data.frame(variable = c("High education attainment",
+                        "Income Percentile",
+                        "People with no insurance",
+                        "People with private insurance",
+                        "Males",
+                        "People aged above 85",
+                        "White people",
+                        "Black people",
+                        "People supporting Republican"),
+           coded_name = c("high_education",
+                          "IncomePctile",
+                          "no_insurance",
+                          "private_insurance",
+                          "males",
+                          "age_85",
+                          "white",
+                          "black",
+                          "rep_rate"),
+           description = c("The proportion of local residents with at least Bachelor degree",
+                           "The mean household income percentile representing the income level for each county",
+                           "The proportion of local residents without insurance",
+                           "The proportion of local residents with private insurance",
+                           "The proportion of male residents",
+                           "The proportion of people aged above 85",
+                           "The proportion of white people",
+                           "The proportion of black people",
+                           "Number of voters supporting Republican by 1000")) %>% 
+  rename(`Variable` = variable,
+         `Encoded Name` = coded_name,
+         `Description` = description) %>% 
+  kable(booktabs = TRUE) %>% 
+  column_spec(column = 3, width = "6cm")
+```
+
+The @tbl-summary_variables summarizes all the important variables in this paper. It contains the social characteristics such as high education attainment and economic factors such as income percentile. Moreover, the demographic information and political preference for each county are also included
+
+```{r}
+#| echo: false
+#| message: false
+#| label: fig-boxplot
 #| fig-cap: Summary of deaths rate for counties voting for Democratic and Republican
 data  %>%
   ggplot(mapping = aes(x = party, y = death_rate)) +
@@ -116,34 +171,58 @@ data  %>%
        y = "Death Rate per 1000")
 ```
 
-Sumamrise the above plot
+To understand the data better, @fig-boxplot shows the the distribution of death rate for the counties voting for the two parties. We can observe that difference in political preference results differences in death rate. Counties voting for republican has a relative higher death rate than the counties voting for the Democratic party. In addition, there have outliers for both groups.
 
 ```{r plot-chunk, fig.width=8, fig.height=6, out.width="100%"}
 #| echo: false
+#| warning: false
 #| message: false
-#| fig-cap: Number
+#| label: fig-map
+#| fig-cap: Election results of 2020 Federal Election and the corresponding death rate for each US county
+state_boundaries <- usmap::us_map(regions = "states", 
+                                  exclude = c("AK", "Hawaii"))
+plot1 <- plot_usmap(data = data, values = "rep_rate", regions = "counties", exclude = c("AK", "Hawaii")) + 
+  scale_fill_gradient2(name = "Voting for the Republican %", 
+                       low = "blue", mid = "white", high = "red",
+                       midpoint = 500, 
+                       breaks = c(0, 500, 1000)) + 
+  geom_polygon(data = state_boundaries, 
+               aes(x = x, y = y, group = group), 
+               fill = NA, 
+               color = "black", size = 0.8) +  
+  labs(subtitle = "The voting patter for each US county") +
+  theme(plot.subtitle = element_text(size = 12,
+                                     hjust = 0.5),
+        legend.position = "right", plot.title = element_blank())
 
-# First plot
-plot1 <- plot_usmap(data = acs_covid, values = "death_rate", regions = "counties", exclude = c("AK", "Hawaii")) + 
-  scale_fill_continuous(low = "white", high = "blue", name = "", label = scales::comma) + 
-  labs(subtitle = "Subtitle for Plot 1") +
-  theme(legend.position = "right", plot.title = element_blank())
-
-# Second plot
-plot2 <- plot_usmap(data = data, values = "party", regions = "counties", exclude = "AK", "Hawaii") + 
-  scale_fill_manual(values = c("Republican" = "red", "Democratic" = "blue"), 
-                    name = "Party",
-                    breaks = c("Republican", "Democratic")) + 
-  labs(subtitle = "Subtitle for Plot 2") +
-  theme(legend.position = "right", plot.title = element_blank())
+plot2 <- plot_usmap(data = data, values = "death_rate", regions = "counties", exclude = c("AK", "Hawaii")) + 
+  scale_fill_gradient2(low = "white", high = "blue", 
+                        limits = c(0, 8),
+                        breaks = c(0, 8),
+                        name = "Death per 1000",
+                       oob = scales::squish) + 
+  geom_polygon(data = state_boundaries, 
+               aes(x = x, y = y, group = group), 
+               fill = NA, 
+               color = "black", size = 0.8) +  
+  labs(subtitle = "Death of COVID per 1000 ") +
+  theme(plot.subtitle = element_text(size = 12,
+                                     hjust = 0.5),
+        legend.position = "right", plot.title = element_blank())
 
 # Arrange the plots vertically with a main title
-grid.arrange(plot1, plot2, ncol=1)
+library(cowplot)
 
+plot_grid(plot1, plot2, ncol = 1, align = "v", rel_heights = c(1,1))
 ```
 
-Talk more about it.
+To understand how the death rate correlates with the political preference, @fig-map compares the support for Republican with corresponding death rate. From the graph, we can observe that the dark color corresponds to the dark blue, meaning that the counties voting for Republican seem to have a higher death rate than the counties voting for Democratic party. This pattern is especially significant for the central states.
 
+## Data limitations
+
+Our data combines five data sets from three sources. However, it still have limitations which may affect the analyses, reducing the accuracy of our predictions.
+
+First of all, there is lack of COVID information in certain states, especially for the state "Utah." We can observe this from @fig-map which some counties shows a color of grey. Due to this lackness, the merged data set will also lack the information on these counties even though other data sets have that information. The accuracy of the models may be also affected. In addition, the data we have may lack of spread, meaning that there could have other information which may also affect the death rate but are not included in this paper such as the hospital capacity. Our analyse may be less convincing.
 
 # Methods
 
@@ -155,20 +234,16 @@ Before we fit the models, I will split the data into training and testing data. 
 
 For each OLS regression model, the response variable will always be the death rate of COVID in each county. However, since the deaths rate can be attributed by various perspectives such as demographic and economics, and we also want to see whether it depends on the party they voted during the last Federal Election. I will create two sets of models, which the first set does not consider the political preferences but the second does. In addition, for each sets of model, there will be three models with each one considering only one perspective of predictors, an overall model containing all predictors and one best model based on $R^2_{adj}$ and $RMSE$. That said, I will fit 10 models in total along with two best models. To decide which model is the best one, I will use test them using the testing data, to see which one has a lower testing $RMSE$.
 
-In addition to OLS regression models, I will also draw the regression tree and 
+In addition to OLS regression models, I will also draw the regression tree and
 
-The general form of the regression models is:
-$$Y=\beta_0+\beta_1 X_1+\cdots+\beta_p X_p+\epsilon$$
-where:
-- $Y$ represents the response variables which is the death rate.
-- $\beta_0$ represents the intercept, which is the death rate holding all variables to zero
-- $\beta_j$ represents the change of death rates with one unit increase in $X_j$
-- $\epsilon$ captures measurement errors and other discrepancies
+The general form of the regression models is: $$Y=\beta_0+\beta_1 X_1+\cdots+\beta_p X_p+\epsilon$$ where: - $Y$ represents the response variables which is the death rate. - $\beta_0$ represents the intercept, which is the death rate holding all variables to zero - $\beta_j$ represents the change of death rates with one unit increase in $X_j$ - $\epsilon$ captures measurement errors and other discrepancies
 
 ## Assumptions of the regression models
+
 After we fit the linear regression models, it is essential to check the assumptions to ensure the accuracy of our predictions. There are four main assumptions which are linearity, uncorrelated error, constant variance and normality. For the first three assumptions, we can check it by plot the residuals with fitted values. However, we need to plot the Normal QQ plot to check the normality.
 
 ## Regression Tree and Importance Matrix
+
 A regression tree is a type of decision tree used specifically for regression problems, where the goal is to predict a continuous outcome variable based on one or more predictor variables. By using the regression tress, we can explain the decisions, identify possible events that might occur, and see potential outcomes
 
 The objection function of regression tree is:
@@ -183,65 +258,192 @@ In addition to regression trees, we can also use the importance matrix which can
 
 # Results
 
-
-@first-model shows the summary table for the model without political references. Using the above information, we can write the equation model:
-
-```{r}
-model1 <- lm(death_rate ~ prop_higher_education + pctile + no_insurance + private_insurance + males + old_85 + white_pct + black_pct, data = training_data)
-summary(model1)
-```
+## Death rate without considering the political preferences
 
 ```{r}
-model2 <- lm(death_rate ~ rep_rate + prop_higher_education + pctile + 
-                 private_insurance  + no_insurance +
-                 males + old_85  + white_pct + 
-                 black_pct, data = training_data)
-summary(model2)
+#| echo: false
+#| message: false
+#| label: tbl-first_model
+#| tbl-cap: Summary of the Best Model Without Politics Preference 
+
+# Creating the Model
+best1 <- lm(death_rate ~ high_education + pctile + no_insurance + private_insurance + males + age_85 + white + black, data = training_data)
+
+broom::tidy(best1) %>% 
+  mutate(predictors = c("(Intercept)", as.character(attr(terms(best1), "term.labels"))),
+         estimate = round(estimate, 3),
+         std.error = round(std.error, 3),
+         statistic = round(statistic, 3),
+         p.value = round(p.value, 3)) %>% 
+  select(predictors,
+         estimate,
+         std.error,
+         statistic,
+         p.value) %>% 
+  rename(`Predictor` = predictors,
+         `Estimate` = estimate,
+         `Standard Error` = std.error,
+         `Statistics` = statistic,
+         `P-value` = p.value) %>% 
+  kable(booktabs = TRUE)
 ```
 
+@tbl-first_model shows the summary table for the model without political references. Using the above information, we can write the equation model:
+
+```{=tex}
 \begin{align*}
-\text{Death Rate} &=  7.23 \\
-& - 0.05 \times \text{prop\_higher\_education} \\
-& - 0.02 \times \text{pctile} \\
-& + 0.07 \times \text{no\_insurance} \\
-& - 0.06 \times \text{males} \\
-& + 0.29 \times \text{old\_85} \\
-& + 0.01 \times \text{white\_pct} \\
-& + 0.01 \times \text{black\_pct}
+\text{Death Rate} &=  7.521 \\
+& - 0.051 \times \text{prop\_higher\_education} \\
+& - 0.012 \times \text{IncomePctile} \\
+& + 0.066 \times \text{no\_insurance} \\
+& - 0.014 \times \text{private\_insurance} \\
+& - 0.055 \times \text{males} \\
+& + 0.303 \times \text{old\_85} \\
+& + 0.011 \times \text{white\_pct} \\
+& + 0.013 \times \text{black\_pct}
 \end{align*}
-
+```
 Based on the above model, holding all variables to be zero, the expected deaths rate is about 7.2 per 1000. Holding other variables fixed, with one percent in the proportion of people who has at least bachelor degree, the death rate is expected to increase by 0.05. In addition, with income percentile increases by one, the death rate is expected to decrease by 0.02. Unsurprisingly, there is a negative relationship between the proportion of people with no insurance and death rate, 0.7 more people might die if the ratio of people living in a county without insurance increase by 10%. In terms of demographic factors, the number of death is inversely correlated with the number of males in a county. One percent increase in the males will result 0.06 less death. Moreover, it seems that old people are more likely to be died by COVID. That said, 0.29 more death if one percent increase in the proportion of people aged above 85. Lastly, one percent increase in the proportion of white and black people are both expected to have 0.01 more death.
 
+## Death rate with considering the plotical preference
 
-@second-model shows the summary of the best model without and with the political preferences. Based on them, we can write the regression question
+```{r}
+#| echo: false
+#| message: false
+#| label: tbl-second_model
+#| tbl-cap: Summary of the Best Model With Politics Preference 
 
+# Creating the Model
+best2 <- lm(death_rate ~ rep_rate + high_education + pctile + 
+                 private_insurance  + no_insurance +
+                 males + age_85  + white + 
+                 black, data = training_data)
 
+broom::tidy(best2) %>% 
+  mutate(predictors = c("(Intercept)", as.character(attr(terms(best2), "term.labels"))),
+         estimate = round(estimate, 3),
+         std.error = round(std.error, 3),
+         statistic = round(statistic, 3),
+         p.value = round(p.value, 3)) %>% 
+  select(predictors,
+         estimate,
+         std.error,
+         statistic,
+         p.value) %>% 
+  rename(`Predictor` = predictors,
+         `Estimate` = estimate,
+         `Standard Error` = std.error,
+         `Statistics` = statistic,
+         `P-value` = p.value) %>% 
+  kable(booktabs = TRUE)
+```
+
+@tbl-second_model shows the summary of the best model without and with the political preferences. Based on them, we can write the regression question.
+
+```{=tex}
 \begin{align*}
-\text{Death Rate} &=  7.75 \\
-& + 0.0034980 \times \text{Rep\_Rate} \\
-& - 0.4972847 \times \text{Rep\_Win} \\
-& - 0.0120727 \times \text{Prop\_Higher\_Education} \\
-& - 0.0099034 \times \text{Pctile} \\
-& - 0.0284321 \times \text{Private\_Insurance} \\
-& + 0.0281570 \times \text{No\_Insurance} \\
-& - 0.0593644 \times \text{Males} \\
-& + 0.3024402 \times \text{Old\_85} \\
-& - 0.0169198 \times \text{White\_Pct} \\
-& + 0.0130027 \times \text{Black\_Pct} \\
-& - 0.0172526 \times \text{Rep\_Win:Prop\_Higher\_Education} \\
-& + 0.0125389 \times \text{Rep\_Win:White\_Pct}
+\text{Death Rate} &=  7.596 \\
+& + 0.003 \times \text{Rep\_Rate} \\
+& - 0.024 \times \text{High\_Education} \\
+& - 0.010 \times \text{Pctile} \\
+& + 0.027 \times \text{No\_Insurance} \\
+& - 0.028 \times \text{Private\_Insurance} \\
+& - 0.059 \times \text{Males} \\
+& + 0.308 \times \text{Age\_85} \\
+& - 0.008 \times \text{White} \\
+& + 0.013 \times \text{Black}
 \end{align*}
+```
+The difference between the second and the first model is that the second model includes the political preference for each county as one predictor to predict the death rate due to COVID. Holding other variables, we can see that every 100 more votes per 1000 for republican party, 0.3 more people are expected to dead.
 
-The difference between the second and the first model is that the second model includes the political preference for each county as one predictor to predict the death rate due to COVID. Holding other variables, we can see that every 100 more votes for republican party, 0.3 more people are expected to dead. In addition, if the county votes for the Republican, then it is expected to have 
+## Comparing the testing error
 
+The above two models are fitted using the training data. Comparing the training RMSE from @tbl-all_models_1 and @tbl-all_models_2, we can find that the model containing the political preference has a lower training RMSE. However, in order to test the prediction performance of the models we have varying data, I will use testing data to find the test error for the two models above.
+
+```{r}
+#| echo: false
+#| message: false
+#| label: tbl-test_error
+#| tbl-cap: The testing error of the above two models
+
+calculate_testing_error <- function(model, testing_data, outcome) {
+  # Predict the outcomes on the testing data
+  predictions <- predict(model, newdata = testing_data)
+  
+  # Compute the residuals
+  residuals <- predictions - testing_data[[outcome]]
+  
+  # Compute the MSE
+  mse <- mean(residuals^2)
+  
+  return(mse)
+}
+
+data.frame(model = c("Model 1", "Model 2"),
+           error = c(calculate_testing_error(best1, testing_data, "death_rate"),
+                     calculate_testing_error(best2, testing_data, "death_rate"))) %>% 
+  rename(`Model` = model,
+         `Testinf Error` = error) %>% 
+  kable(booktabs = TRUE)
+```
+
+@tbl-test_error shows the testing error of the above two models. We can observe that the errors for the two models are 1.769733 and 1.675969. Therefore, the model containing the political preferences has a lower expecter MSE, hence it has better predictions than another one.
 
 # Discussion
 
-## The impact of political preference on death rate is more significant than expected.
+To sum up, the second model which contains the political reference is more appropriate than another one, representing that the party each county supported during the last election may change the attitude that people face with COVID and hence results differences in death rate. In addition to that, it is also important to consider the rest variables while predicting the death rate.
 
-If my paper were 10 pages, then should be be at least 2.5 pages. The discussion is a chance to show off what you know and what you learnt from all this.
+## The impact of political preference on death rate is more significant than expected, it may overcome the change of income levels.
 
-## However, the socio-economic variables especially the private insurance, also play an important role.
+From the @tbl-second_model, we can observe that both income percentile and the support of Republican both are significant in predicting the death rate of COVID, but with an inverse direction of their coefficients. More people voting for Republican party is expected to increase the number of deaths due to COVID in this county and a wealthier counties usually have a less COVID deaths. However, if we compare their values of coefficients, we can find that the increase in death by every three more people in 1000 voting for Republican party is equivalent to decrease in death rate by one increase in the income percentile. In other words, counties with the lowest income levels might be the worst areas sacrificing from COVID if they support the Republican party.
+
+This is a surprising but also horrible observation as Donald Trump is especially in favor of poor people. Eight out of the top 10 counties with highest poverty rate voted for Donald Trump. Referring to @fig-map, we can clearly see that the above 80% states in the poorer states, middle US, had voted for Trump. Conversely, above 80% wealthier coastal states, such as California and New York, had voted for The Democratic party. These both verify our observations from the model. What Trump's votes does not know is that their support may bring more deaths to their counties. 
+
+But why, why the counties with higher income levels are less likely to vote for the Republican party and hence results in a lower death rate? One thing that can explain this pattern from our model is the proportion of people that have higher education level. According to @tbl-second_model, we can find that there is an inverse relationship between the death rate and the number of residents with high education level. Its value of coefficient is much higher than the previous two, indicating that education level is an essential factor in predicting the death rate.
+
+```{r}
+#| echo: false
+#| message: false
+#| label: fig-education
+#| fig-cap: The testing error of the above two models
+
+breakpoints <- quantile(data$high_education, probs = c(0, 1/3, 2/3, 1))
+data$education <- cut(data$high_education, breaks = breakpoints, 
+                      labels = c("Low", "Medium", "High"), include.lowest = TRUE)
+
+ggplot(data, aes(x = high_education, y = death_rate)) +
+  geom_point() +
+  labs(x = "Income Percentile", y = "Death Rate", title = "Death Rate by Education Level and Income Percentile") +
+  theme_minimal()
+```
+
+
+```{r}
+summarized_data <- data %>%
+  mutate(bin = cut(pctile, breaks = seq(0, 100, by = 5), include.lowest = TRUE, labels = seq(2.5, 97.5, by = 5))) %>%
+  group_by(bin) %>%
+  summarise(
+    avg_death_rate = mean(death_rate, na.rm = TRUE),
+    avg_education_level = mean(high_education, na.rm = TRUE)
+  )
+
+# Create the plot with dual y-axis
+ggplot(summarized_data, aes(x = as.numeric(as.character(bin)))) +
+  geom_line(aes(y = avg_death_rate, color = "Average Death Rate"), size = 1) +
+  geom_line(aes(y = avg_education_level/2, color = "Average Education Level"), size = 1) + # Adjust the division for better visualization
+  scale_y_continuous(sec.axis = sec_axis(~.*2, name = "Average Education Level")) + # Adjust the multiplier to reverse the transformation
+  labs(x = "Income Percentile", y = "Average Death Rate", color = "Legend") +
+  theme_minimal()
+```
+
+
+
+Education reflects this
+
+## Health insurance iss also an important factor in predicting the death rate of COVID.
+In addition to the political preferences, the healthcare insurance is also significant in predicting the death rate for each county. Based on @tbl-second_model, it seems that both `no_insurance` and `private_insurance` are also significant in predicting the death rate for each county but they shows an inverse relationship on the death rate. In addition, the values of these two coefficients are almost same, meaning that the effects on death rate between them can be offset.
+
+However, t
 
 ## The importantance matrix matches our models
 
@@ -251,120 +453,57 @@ Weaknesses and next steps should also be included.
 
 \newpage
 
-# Appendix {-}
+# Appendix {.unnumbered}
 
 ## Model details
 
 aaa
 
-
-
 ojnoj
-
 
 klmko
 
-```{r}
-#| echo: false
-#| message: false
-#| label: first-model
-#| tbl-cap: Summary of the Best Model Without Politics Preference 
-
-# Creating the Model
-best1 <- lm(death_rate ~ prop_higher_education + pctile + no_insurance + private_insurance + males + old_85 + white_pct + black_pct, data = training_data)
-
-broom::tidy(best1) %>% 
-  mutate(predictors = c("(Intercept)", as.character(attr(terms(best1), "term.labels"))),
-         estimate = round(estimate, 2),
-         std.error = round(std.error, 2),
-         statistic = round(statistic, 2),
-         p.value = round(p.value, 3)) %>% 
-  select(predictors,
-         estimate,
-         std.error,
-         statistic,
-         p.value) %>% 
-  rename(`Predictor` = predictors,
-         `Estimate` = estimate,
-         `Standard Error` = std.error,
-         `Statistics` = statistic,
-         `P-value` = p.value) %>% 
-  kable(format = "latex")
-```
-
 j jnjn
 
-
-
 ```{r}
 #| echo: false
 #| message: false
-#| label: second-model
-#| tbl-cap: Summary of the Best Model With Politics Preference 
-
-# Creating the Model
-best2 <- lm(death_rate ~ rep_rate + prop_higher_education + pctile + 
-                 private_insurance  + no_insurance +
-                 males + old_85  + white_pct + 
-                 black_pct, data = training_data)
-
-broom::tidy(best2) %>% 
-  mutate(predictors = c("(Intercept)", as.character(attr(terms(best2), "term.labels"))),
-         estimate = round(estimate, 2),
-         std.error = round(std.error, 2),
-         statistic = round(statistic, 2),
-         p.value = round(p.value, 3)) %>% 
-  select(predictors,
-         estimate,
-         std.error,
-         statistic,
-         p.value) %>% 
-  rename(`Predictor` = predictors,
-         `Estimate` = estimate,
-         `Standard Error` = std.error,
-         `Statistics` = statistic,
-         `P-value` = p.value) %>% 
-  knitr::kable()
-```
-
-```{r}
-#| echo: false
-#| message: false
+#| label: tbl-all_models_1
 #| tbl-cap: Summary of the set of models with political preferences
 
 # data_model$mean_household_income <- log(data_model$mean_household_income)
 
-social1 <- lm(death_rate ~ prop_higher_education, data = training_data)
+social1 <- lm(death_rate ~ high_education, data = training_data)
 economic1 <- lm(death_rate ~ pctile + unemployment + no_insurance +
                              private_insurance + public_insurance, 
                 data = training_data)
-demographic1 <- lm(death_rate ~ males + old_85 + children +
-                                white_pct + black_pct, data = training_data)
-overall1 <- lm(death_rate ~ .-rep_win - party - rep_rate, data = training_data)
-best1 <- lm(death_rate ~ prop_higher_education + pctile + no_insurance + private_insurance + males + old_85 + white_pct + black_pct, data = training_data)
+demographic1 <- lm(death_rate ~ males + age_85 + children +
+                                white + black, data = training_data)
+overall1 <- lm(death_rate ~ .-rep_win - party - rep_rate - high_income, data = training_data)
+best1 <- lm(death_rate ~ high_education + pctile + no_insurance + private_insurance + males + age_85 + white + black, data = training_data)
 modelsummary(list(social1, economic1, demographic1, overall1, best1), stars=TRUE)
 ```
 
 ```{r}
 #| echo: false
 #| message: false
-#| label: tbl-modelresults
+#| label: tbl-all_models2
 #| tbl-cap: Summary of the set of models with political preferences
 
-social2 <- lm(death_rate ~ rep_rate + prop_higher_education, data = training_data)
+social2 <- lm(death_rate ~ rep_rate + high_education, data = training_data)
 economic2 <- lm(death_rate ~ rep_rate + pctile + unemployment + no_insurance +
                              private_insurance + public_insurance, 
                 data = training_data)
-demographic2 <- lm(death_rate ~ rep_rate + males + old_85 + children +
-                                white_pct + black_pct, data = training_data)
-overall2 <- lm(death_rate ~ rep_rate + prop_higher_education + pctile + 
+demographic2 <- lm(death_rate ~ rep_rate + males + age_85 + children +
+                                white + black, data = training_data)
+overall2 <- lm(death_rate ~ rep_rate + high_education + pctile + 
                  unemployment + private_insurance + public_insurance + no_insurance +
-                 males + old_85 + children + white_pct + 
-                 black_pct, data = training_data)
-best2 <- lm(death_rate ~ rep_rate + prop_higher_education + pctile + 
+                 males + age_85 + children + white + 
+                 black, data = training_data)
+best2 <- lm(death_rate ~ rep_rate + high_education + pctile + 
                  private_insurance  + no_insurance +
-                 males + old_85  + white_pct + 
-                 black_pct, data = training_data)
+                 males + age_85  + white + 
+                 black, data = training_data)
 modelsummary(list(social2, economic2, demographic2, overall2, best2), stars=TRUE)
 ```
 
@@ -373,3 +512,4 @@ modelsummary(list(social2, economic2, demographic2, overall2, best2), stars=TRUE
 # References
 
 https://news.un.org/en/story/2023/05/1136367 https://www.aljazeera.com/news/2023/5/11/three-years-1-1-million-deaths-covid-emergency-ending-in-us
+https://wisevoter.com/state-rankings/poorest-states/
