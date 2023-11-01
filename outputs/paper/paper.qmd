@@ -223,35 +223,32 @@ First, there is a lack of COVID information in certain states, especially in "Ut
 
 # Methods
 
-As I introduced in the introduction, this paper aim to predict the death rate of COVID in each county of US and to detect whether this correlation related to their political preferences. Based on the merged data we have above, I will perform a series of models, from simple to complicated, to detect which predictors are significant in predicting the death rate.
+As I introduced, this paper aims to predict the death rate of COVID in each country of the US and to detect whether this correlation is related to their political preferences. Based on the merged data above, I will perform a series of models, from simple to complicated, to detect which predictors are significant in predicting the death rate.
 
 ## Model Specifics
 
-Before we fit the models, I will split the data into training and testing data. The training data is used to fit all the models and they are tested on the testing model, to see which one performs betters.
+Before we fit the models, I will split the data into training and testing data. The training data is used to fit all the models, and they are tested on the testing model to see which one performs better.
 
-For each OLS regression model, the response variable will always be the death rate of COVID in each county. However, since the deaths rate can be attributed by various perspectives such as demographic and economics, and we also want to see whether it depends on the party they voted during the last Federal Election. I will create two sets of models, which the first set does not consider the political preferences but the second does. In addition, for each sets of model, there will be three models with each one considering only one perspective of predictors, an overall model containing all predictors and one best model based on $R^2_{adj}$ and $RMSE$. That said, I will fit 10 models in total along with two best models. To decide which model is the best one, I will use test them using the testing data, to see which one has a lower testing $RMSE$.
+In each OLS regression model, the dependent variable will consistently be the COVID-19 death rate for each county. Given that death rates can be influenced by many factors, including demographics and economics, and given our interest in the potential impact of political party affiliation from the last Federal Election, I will establish two sets of models. The first set will not incorporate political preferences, while the second set will. Within each of these sets, there will be three models, each focusing exclusively on one category of predictors. Additionally, there will be a comprehensive model encompassing all predictors and a best-fit model determined by $R^2_{adj}$ and $RMSE$. In total, this approach will yield ten models, including the two best-fit models. To decide which model is the best, I will evaluate them using testing data to see which one has a lower testing $RMSE$.
 
-In addition to OLS regression models, I will also draw the regression tree and
-
-The general form of the regression models is: $$Y=\beta_0+\beta_1 X_1+\cdots+\beta_p X_p+\epsilon$$ where: - $Y$ represents the response variables which is the death rate. - $\beta_0$ represents the intercept, which is the death rate holding all variables to zero - $\beta_j$ represents the change of death rates with one unit increase in $X_j$ - $\epsilon$ captures measurement errors and other discrepancies
+The general form of the regression models is 
+$$Y=\beta_0+\beta_1 X_1+\cdots+\beta_p X_p+\epsilon$$
+where - $Y$ represents the response variables, which is the death rate. - $\beta_0$ represents the intercept, which is the death rate holding all variables to zero - $\beta_j$ represents the change of death rates with one unit increase in $X_j$ - $\epsilon$ captures measurement errors and other discrepancies
 
 ## Assumptions of the regression models
 
-After we fit the linear regression models, it is essential to check the assumptions to ensure the accuracy of our predictions. There are four main assumptions which are linearity, uncorrelated error, constant variance and normality. For the first three assumptions, we can check it by plot the residuals with fitted values. However, we need to plot the Normal QQ plot to check the normality.
+After we fit the linear regression models, it is essential to check the assumptions to ensure the accuracy of our predictions. There are four main assumptions, which are linearity, uncorrelated error, constant variance, and normality. In this paper, I will assume the models satisfy both of the four assumptions.
 
-## Regression Tree and Importance Matrix
+## Expected MSE and Bias-Variance Trade-off
 
-A regression tree is a type of decision tree used specifically for regression problems, where the goal is to predict a continuous outcome variable based on one or more predictor variables. By using the regression tress, we can explain the decisions, identify possible events that might occur, and see potential outcomes
+The rationale for partitioning the data into training and testing sets is to validate our model. That said, by training a model using training data and then evaluating it using test data, we can determine which model produces the lowest expected MSE and better performance.
 
-The objection function of regression tree is:
+$$
+\mathbb{E}\left[(Y-\hat{f}(x))^2 \mid X=x\right]=\operatorname{Var}(\hat{f}(x))+(\mathbb{E}[\hat{f}(x)]-f(x))^2+\sigma^2
+$$
+The above equation shows the expected MSE, which underscores the bias-variance trade-off. It tells us the trade-off between the model's complexity and the interpretability. An intricate model may increase the bias, but its variance will be higher if we vary the data, and vice-versa.
 
-$$\min_{j,s} \left[  \sum_{i: x_{i,j} \leq s, x_i \in R1}
-    (y_i - \hat{y}_{R1})^2 +  \sum_{i: x_{i,j} > s, x_i \in R2}
-    (y_i - \hat{y}_{R2})^2 \right]$$
-
-The objective function is to minimize the squared error. The $j, s$ represents the index of the variable and threshold, respectively. In my regression tree, the two regions, R_1 and R_2, are split by the percentage of the White population in 2020, and the threshold here is 0.094. This means all the rows with the percentage of White people in 2020 less or equal to 0.094 are assigned to R1; otherwise, the rest are assigned to R2. In addition, the $\hat{y}_{R1}$ and $\hat{y}_{R1}$ represent the mean value of the y in each region. According to the regression tree, we can observe that the mean change of percentage vote for Trump is 0.157 and 0.015, which are the values of $\hat{y}_{R1}$ and $\hat{y}_{R2}$.
-
-In addition to regression trees, we can also use the importance matrix which can tell us which predictors are important in predicting the death rate for each county. It can help us to verify our final model.
+Hence, by evaluating our models using the testing data, we can know whether we should fit a relatively simple or complicated model.
 
 # Results
 
