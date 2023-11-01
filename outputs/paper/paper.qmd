@@ -393,7 +393,7 @@ data.frame(model = c("Model 1", "Model 2"),
 
 To sum up, the second model which contains the political reference is more appropriate than another one, representing that the party each county supported during the last election may change the attitude that people face with COVID and hence results differences in death rate. In addition to that, it is also important to consider the rest variables while predicting the death rate.
 
-## The impact of political preference on death rate is more significant than expected, it may overcome the change of income levels.
+## Politic preference to income levels: wealthier people are less likely to vote for the Republican, perhaps they are more educated.
 
 From the @tbl-second_model, we can observe that both income percentile and the support of Republican both are significant in predicting the death rate of COVID, but with an inverse direction of their coefficients. More people voting for Republican party is expected to increase the number of deaths due to COVID in this county and a wealthier counties usually have a less COVID deaths. However, if we compare their values of coefficients, we can find that the increase in death by every three more people in 1000 voting for Republican party is equivalent to decrease in death rate by one increase in the income percentile. In other words, counties with the lowest income levels might be the worst areas sacrificing from COVID if they support the Republican party.
 
@@ -404,66 +404,78 @@ But why, why the counties with higher income levels are less likely to vote for 
 ```{r}
 #| echo: false
 #| message: false
-#| label: fig-education
-#| fig-cap: The testing error of the above two models
-
-breakpoints <- quantile(data$high_education, probs = c(0, 1/3, 2/3, 1))
-data$education <- cut(data$high_education, breaks = breakpoints, 
-                      labels = c("Low", "Medium", "High"), include.lowest = TRUE)
-
-ggplot(data, aes(x = high_education, y = death_rate)) +
-  geom_point() +
-  labs(x = "Income Percentile", y = "Death Rate", title = "Death Rate by Education Level and Income Percentile") +
-  theme_minimal()
-```
-
-
-```{r}
+#| label: fig-income_education
+#| fig-cap: The change of average death rate across different education levels
 summarized_data <- data %>%
   mutate(bin = cut(pctile, breaks = seq(0, 100, by = 5), include.lowest = TRUE, labels = seq(2.5, 97.5, by = 5))) %>%
   group_by(bin) %>%
   summarise(
     avg_death_rate = mean(death_rate, na.rm = TRUE),
-    avg_education_level = mean(high_education, na.rm = TRUE)
+    avg_education_prop = mean(high_education, na.rm = TRUE)
+  )
+
+# Create the plot with dual y-axis
+# Create the plot with dual y-axis
+ggplot(summarized_data, aes(x = as.numeric(as.character(bin)))) +
+  geom_line(aes(y = avg_death_rate, color = "Avg. Death Rate"), size = 1) +
+  geom_line(aes(y = avg_education_prop/5, color = "Avg. High-Education Rates"), size = 1) + 
+  scale_y_continuous(sec.axis = sec_axis(~.*5, name = "Avg. High-Education Rates")) + 
+  labs(x = "Income Percentile", y = "Avg. Death Rate", color = "Indicators") +
+  theme_minimal() +
+  theme(legend.position = "bottom") 
+```
+
+@fig-income_education shows the average death rate across different income percentile and the corresponding average high-education levels. The blue line represents the average high-education rates and the red line is the average death rate, corresponding to different y-axis. From the graph, it verifies our conclusion which the average death rate decreases as income percentile increases. Meanwhile, the proportion of people with at least bachelor degree goes higher. 
+
+Therefore, the death rate increases as people voting for the Republican increases. However, people living at poorer counties are more likely to vote for Trump and one potential reason behind this is that the the proportion of residents with at least bachelor degree is relatively low in those counties. High education level people are more willing to live at the wealthier counties, and they are less likely to vote for Trump. Perhaps more educated people do not satisfy the actions taken by the government.
+
+## Income levels to Health insurance: more people can afford the private insurance in wealthier counties and reduce the deaths rate.
+In addition to the political preferences, the healthcare insurance is also significant in predicting the death rate for each county. Based on @tbl-second_model, it seems that both `no_insurance` and `private_insurance` are also significant in predicting the death rate for each county but they shows an inverse relationship on the death rate. In addition, the values of these two coefficients are almost same, meaning that the effects on death rate between them can be offset.
+
+```{r}
+#| echo: false
+#| message: false
+#| label: fig-income_insurance
+#| fig-cap: The change of average death rate across different education levels
+# Update the summarized_data to include the new averages
+summarized_data <- data %>%
+  mutate(bin = cut(pctile, breaks = seq(0, 100, by = 5), include.lowest = TRUE, labels = seq(2.5, 97.5, by = 5))) %>%
+  group_by(bin) %>%
+  summarise(
+    avg_death_rate = mean(death_rate, na.rm = TRUE),
+    avg_no_insurance = mean(no_insurance, na.rm = TRUE),
+    avg_private_insurance = mean(private_insurance, na.rm = TRUE)
   )
 
 # Create the plot with dual y-axis
 ggplot(summarized_data, aes(x = as.numeric(as.character(bin)))) +
-  geom_line(aes(y = avg_death_rate, color = "Average Death Rate"), size = 1) +
-  geom_line(aes(y = avg_education_level/2, color = "Average Education Level"), size = 1) + # Adjust the division for better visualization
-  scale_y_continuous(sec.axis = sec_axis(~.*2, name = "Average Education Level")) + # Adjust the multiplier to reverse the transformation
-  labs(x = "Income Percentile", y = "Average Death Rate", color = "Legend") +
-  theme_minimal()
+  geom_line(aes(y = avg_death_rate, color = "Avg. Death Rate"), size = 1) +
+  geom_line(aes(y = avg_no_insurance/8, color = "Avg. No Insurance Rates"), size = 1) +
+  geom_line(aes(y = avg_private_insurance/8, color = "Avg. Private Insurance Rates"), size = 1) + 
+  scale_y_continuous(sec.axis = sec_axis(~.*8, name = "No/Private Insurance Rates")) + 
+  labs(x = "Income Percentile", y = "Avg. Death Rate", color = "Indicators") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
 ```
 
+@fig-income_insurance shows the proportion of people with no/private insurance at each level of income. Unsurprisingly, as income percentiles increases, the proportion of people with private insurance increases but people with no insurances decreases. This suggest that the insurance can be crucial during the pandemic period. People with insurance, especially private insurance may be more likely to have medicine or vaccines, hence the counties with more people having insurance are relatively lower compared to the counties which less people having insurance. In addition, the private insurance seems to have more significant effects.
 
+# Conclusion
 
-Education reflects this
+This paper looks back on the past three years of the epidemic utilizing the socio-economic, COVID and election data in US to see how the COVID death rate varies across counties in US. By the paper, I found that the county's political preference seems to be affect its death rate. Low-income people seems to make "stupid" decision, which they vote for the Republican party which brings them more deaths. In contrast, people living in the wealthier counties seems to be more smart, perhaps they are more educated.
 
-## Health insurance iss also an important factor in predicting the death rate of COVID.
-In addition to the political preferences, the healthcare insurance is also significant in predicting the death rate for each county. Based on @tbl-second_model, it seems that both `no_insurance` and `private_insurance` are also significant in predicting the death rate for each county but they shows an inverse relationship on the death rate. In addition, the values of these two coefficients are almost same, meaning that the effects on death rate between them can be offset.
+## Weaknesses
 
-However, t
+This paper has several limitations. First of all, the data of COVID and election are lost for certain counties, especially the counties in Utah. In addition, I assumes the models do not have any violations on its assumptions. Both drawback may result in inaccurate predictions and lead to the bad performance of the model.
 
-## The importantance matrix matches our models
-
-## Weaknesses and next steps
-
-Weaknesses and next steps should also be included.
+## Future research
+For the future research, one primary thing to do is to use a more complicated model such as Multilevel with Post-Stratification (MR.P). In addition, it would also be necessary to delve deeper into other factors that may affect the COVID death rate such as the healthcare capacity in each county.
 
 \newpage
 
 # Appendix {.unnumbered}
 
 ## Model details
-
-aaa
-
-ojnoj
-
-klmko
-
-j jnjn
 
 ```{r}
 #| echo: false
