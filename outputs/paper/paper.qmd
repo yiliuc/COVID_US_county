@@ -109,7 +109,7 @@ Fox News has posted the 2020 Election data, which was collected by Tony McGovern
 
 ## Data Cleaning
 
-All data was collected and cleaned using the statistical programming language `R` [citation]. The packages used are `tidyverse` [citation], `dplyr` [citation], `stringr` [citation], and `janitor` [citation]. Besides, `here` [citation], `modelsummary` [citation], `girdExtra` [citation], `usmap` [citation], `knitr` [citation], `kableExtra` [citation] are used to analyze the data.
+All data was collected and cleaned using the statistical programming language `R` [@R]. The packages used are `tidyverse` [@tidyverse], `dplyr` [@dplyr], `stringr` [@stringr], and `janitor` [@janitor]. Besides, `here` [@here], `modelsummary` [@modelsummary], `girdExtra` [@gridExtra], `usmap` [@usmap], `knitr` [@knitr], `kableExtra` [@kableExtra] are used to analyze the data.
 
 The way to clean each data set is different. For all the ACS data, I downloaded them using ACS API [citation] and only extracted the necessary variables using the codebook published by ACS [citation]. Additionally, I standardized the county names and transformed state names into their abbreviated forms. Regarding the COVID data sourced from JHU, I only select the cases and death numbers of US counties. Lastly, for the election data, I not only extracted the county name and transformed the state name to its abbreviation form but also calculated the number of people voting for the Republican party per 1000 voters.
 
