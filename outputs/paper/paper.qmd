@@ -252,7 +252,7 @@ Hence, by evaluating our models using the testing data, we can know whether we s
 
 # Results
 
-## Death rate without considering the political preferences
+## Model Excluding Political Preferences
 
 ```{r}
 #| echo: false
@@ -297,9 +297,12 @@ broom::tidy(best1) %>%
 & + 0.013 \times \text{black\_pct}
 \end{align*}
 ```
-Based on the above model, holding all variables to be zero, the expected deaths rate is about 7.2 per 1000. Holding other variables fixed, with one percent in the proportion of people who has at least bachelor degree, the death rate is expected to increase by 0.05. In addition, with income percentile increases by one, the death rate is expected to decrease by 0.02. Unsurprisingly, there is a negative relationship between the proportion of people with no insurance and death rate, 0.7 more people might die if the ratio of people living in a county without insurance increase by 10%. In terms of demographic factors, the number of death is inversely correlated with the number of males in a county. One percent increase in the males will result 0.06 less death. Moreover, it seems that old people are more likely to be died by COVID. That said, 0.29 more death if one percent increase in the proportion of people aged above 85. Lastly, one percent increase in the proportion of white and black people are both expected to have 0.01 more death.
 
-## Death rate with considering the plotical preference
+The above equation shows the model excluding the political preferences. When all variables are set to zero, the anticipated death rate stands at approximately 7.2 per 1,000. Keeping other variables constant, an increase of one percent in the proportion of individuals having at least a bachelor's degree is associated with an expected rise of 0.05 in the death rate. Furthermore, for every percentile increase in income, the death rate is projected to drop by 0.02. Notably, there's a negative correlation between the proportion of uninsured individuals and the death rate; an uptick of 10% in the ratio of uninsured residents in a county may lead to an additional 0.7 deaths per 1,000.
+
+Regarding demographic factors, the number of deaths is inversely correlated with the number of males in a county. One percent increase in the males will result in 0.06 less death. Moreover, it seems that older people are more likely to die from COVID. That said, there will be 0.29 more deaths if there is a one percent increase in the proportion of people aged above 85. Lastly, one percent increase in the proportion of white and black people is expected to have 0.01 more deaths.
+
+## Model Including Plotical Preference
 
 ```{r}
 #| echo: false
@@ -348,11 +351,12 @@ broom::tidy(best2) %>%
 & + 0.013 \times \text{Black}
 \end{align*}
 ```
-The difference between the second and the first model is that the second model includes the political preference for each county as one predictor to predict the death rate due to COVID. Holding other variables, we can see that every 100 more votes per 1000 for republican party, 0.3 more people are expected to dead.
+
+The difference between the second and the first model is that the second model includes the political preference for each county as one predictor to predict the death rate due to COVID-19. Holding other variables, we can see that for every 100 more votes per 1000 for the Republican party, 0.3 more people are expected to die.
 
 ## Comparing the testing error
 
-The above two models are fitted using the training data. Comparing the training RMSE from @tbl-all_models_1 and @tbl-all_models_2, we can find that the model containing the political preference has a lower training RMSE. However, in order to test the prediction performance of the models we have varying data, I will use testing data to find the test error for the two models above.
+The above two models are fitted using the training data. Comparing the training RMSE from @tbl-all_models_1 and @tbl-all_models_2, we can find that the model containing the political preference has a lower training RMSE. As introduced in the Methods part, to test the prediction performance of the models, I will calculate the test error for the two models to see which is better.
 
 ```{r}
 #| echo: false
@@ -381,7 +385,7 @@ data.frame(model = c("Model 1", "Model 2"),
   kable(booktabs = TRUE)
 ```
 
-@tbl-test_error shows the testing error of the above two models. We can observe that the errors for the two models are 1.769733 and 1.675969. Therefore, the model containing the political preferences has a lower expecter MSE, hence it has better predictions than another one.
+@tbl-test_error shows the testing error of the above two models. We can observe that the errors for the two models are 1.769733 and 1.675969. Therefore, the model containing the political preferences has a lower testing MSE; it has better predictions than the another one.
 
 # Discussion
 
