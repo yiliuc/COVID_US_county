@@ -109,7 +109,8 @@ election_data_clean <- election_data_clean %>%
   mutate(county = if_else(state == "LA", paste0(county, " Parish"), county),
          rep_win = case_when(votes_rep > votes_dem ~ 1,
                              votes_rep < votes_dem ~ 0,
-                             TRUE ~ 1))
+                             TRUE ~ 1),
+         rep_rate = (votes_rep/total_votes)*1000,)
 election_data_clean <- na.omit(election_data_clean)
 
 # Merge the five data sets. The merged data set will be the data in this paper
@@ -122,14 +123,17 @@ merged_data_overall <- merged_data_acs_covid %>%
   inner_join(election_data_clean, by = c("state", "county"))
 
 
-unique_rows_DP05 <- DP05_clean %>%
-  anti_join(election_data_clean, by = c("state", "county"))
-
-unique_rows_election <- election_data_clean %>%
-  anti_join(covid_data_clean, by = c("state", "county"))
-
-unique_rows_covid <- covid_data_clean %>%
-  anti_join(election_data_clean, by = c("state", "county"))
+# unique_rows_DP05 <- DP05_clean %>%
+#   anti_join(covid_data_clean, by = c("state", "county"))
+# 
+# unique_rows_election <- election_data_clean %>%
+#   anti_join(covid_data_clean, by = c("state", "county"))
+# 
+# unique_rows_election <- election_data_clean %>%
+#   anti_join(covid_data_clean, by = c("state", "county"))
+# 
+# unique_rows_covid <- covid_data_clean %>%
+#   anti_join(election_data_clean, by = c("state", "county"))
 
 
 
