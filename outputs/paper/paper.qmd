@@ -25,6 +25,7 @@ library(usmap)
 library(knitr)
 library(kableExtra)
 library(purrr)
+library(ggplot2)
 
 acs <- read.csv(here("outputs/data/merged_data_acs.csv"))
 acs_covid <- read.csv(here("outputs/data/merged_data_acs_covid.csv"))
@@ -109,7 +110,7 @@ Fox News has posted the 2020 Election data, which was collected by Tony McGovern
 
 ## Data Cleaning
 
-All data was collected and cleaned using the statistical programming language `R` [@R]. The packages used are `tidyverse` [@tidyverse], `dplyr` [@dplyr], `stringr` [@stringr], and `janitor` [@janitor]. Besides, `here` [@here], `modelsummary` [@modelsummary], `girdExtra` [@gridExtra], `usmap` [@usmap], `knitr` [@knitr], `kableExtra` [@kableExtra] are used to analyze the data.
+All data was collected and cleaned using the statistical programming language `R` [@R]. The packages used are `tidyverse` [@tidyverse], `dplyr` [@dplyr], `stringr` [@stringr], and `janitor` [@janitor]. Besides, `here` [@here], `modelsummary` [@modelsummary], `girdExtra` [@gridExtra], `usmap` [@usmap], `ggpot2` [@ggplot2], `knitr` [@knitr], `kableExtra` [@kableExtra] are used to analyze the data.
 
 The way to clean each data set is different. For all the ACS data, I downloaded them using ACS API [@acs_api] and only extracted the necessary variables using the codebook published by ACS [@acs_codebook]. Additionally, I standardized the county names and transformed state names into their abbreviated forms. Regarding the COVID data sourced from JHU, I only select the cases and death numbers of US counties. Lastly, for the election data, I not only extracted the county name and transformed the state name to its abbreviation form but also calculated the number of people voting for the Republican party per 1000 voters.
 
@@ -211,40 +212,6 @@ plot2 <- plot_usmap(data = data, values = "death_rate", regions = "counties", ex
 library(cowplot)
 
 plot_grid(plot1, plot2, ncol = 1, align = "v", rel_heights = c(1,1))
-```
-
-```{r}
-#| include: false
-library(ggplot2)
-library(maps)
-states <- map_data("state")
-counties <- map_data("county")
-state_map <- data.frame(state.name = tolower(state.name), state.abb = state.abb)
-counties$region <- state_map$state.abb[match(counties$region, state_map$state.name)]
-counties$subregion <- tools::toTitleCase(counties$subregion)
-
-mer <- merge(counties, data, by.x=c("subregion", "region"), by.y=c("county", "state"), all.x = TRUE)
-mer$death_rate[is.na(mer$death_rate)] <- 0
-
-ggplot(data=mer, mapping=aes(x=long, y=lat, group=group, fill=death_rate)) + 
-  geom_polygon(color="black") +
-  scale_fill_gradient(low="white", high="blue", name="Income") + 
-  ggtitle('U.S. Map with Income by County') + 
-  theme_minimal() + 
-  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), axis.ticks.x=element_blank(),
-        axis.title.y=element_blank(), axis.text.y=element_blank(), axis.ticks.y=element_blank()) +
-  coord_fixed(1.3)
-
-ggplot(mer, aes(x=long, y=lat, group=group)) + 
-  geom_polygon(color="black", fill="gray") +
-  coord_map() +
-  theme_minimal()
-
-duplicated_rows <- data[duplicated(data[c("county", "state")]),]
-if (nrow(duplicated_rows) > 0) {
-  print("There are duplicated rows!")
-  print(duplicated_rows)
-}
 ```
 
 To better understand the distribution of death rate from a geography perspective, @fig-map compares the support for Republicans with the corresponding death rate by plotting them onto maps. From the graph, we can observe that the dark color corresponds to the dark blue, meaning that the counties voting for the Republican seem to have a higher death rate than those voting for the Democratic Party. This pattern is especially significant for the central states.
@@ -425,13 +392,109 @@ data.frame(model = c("Model 1", "Model 2"),
 
 To sum up, the second model which contains the political reference is more appropriate than another one, representing that the party each county supported during the last election may change the attitude that people face with COVID and hence results differences in death rate. In addition to that, it is also important to consider the rest variables while predicting the death rate.
 
-## Politic preference to income levels: wealthier people are less likely to vote for the Republican, perhaps they are more educated.
+## Although income levels are known to affect the COVID mortality, the impact of political preferences is more substantial than anticipated, potentially overcshadowing the effects of income.
 
 From the @tbl-second_model, we can observe that both income percentile and the support of Republican both are significant in predicting the death rate of COVID, but with an inverse direction of their coefficients. More people voting for Republican party is expected to increase the number of deaths due to COVID in this county and a wealthier counties usually have a less COVID deaths. However, if we compare their values of coefficients, we can find that the increase in death by every three more people in 1000 voting for Republican party is equivalent to decrease in death rate by one increase in the income percentile. In other words, counties with the lowest income levels might be the worst areas sacrificing from COVID if they support the Republican party.
 
-This is a surprising but also horrible observation as Donald Trump is especially in favor of poor people. Eight out of the top 10 counties with highest poverty rate voted for Donald Trump. Referring to @fig-map, we can clearly see that the above 80% states in the poorer states, middle US, had voted for Trump. Conversely, above 80% wealthier coastal states, such as California and New York, had voted for The Democratic party. These both verify our observations from the model. What Trump's votes does not know is that their support may bring more deaths to their counties. 
+```{r, fig.width=10, fig.height=4}
+#| echo: false
+#| message: false
+#| label: fig-income_state
+#| fig-cap: Variation in COVID-19 Mortality Rates Across States, Categorized by Income Levels and Dominant Political Preferences
 
-But why, why the counties with higher income levels are less likely to vote for the Republican party and hence results in a lower death rate? One thing that can explain this pattern from our model is the proportion of people that have higher education level. According to @tbl-second_model, we can find that there is an inverse relationship between the death rate and the number of residents with high education level. Its value of coefficient is much higher than the previous two, indicating that education level is an essential factor in predicting the death rate.
+library(dplyr)
+library(ggplot2)
+# Find the wining data for each state
+data_win_party <- data %>%
+  group_by(state) %>%
+  summarise(dem_votes = sum(votes_dem),
+            rep_votes = sum(votes_rep), 
+            .groups = 'drop') %>% 
+  mutate(winning_party = ifelse(dem_votes > rep_votes, 'Democratic', 'Republican')) %>% 
+  select(state, winning_party)
+# Calculate the average income
+average_income_by_state <- data %>%
+  group_by(state) %>%
+  summarise(average_income = mean(mean_household_income), .groups = 'drop')
+# Join the winning party and average income back to the original data
+data_win_party_income <- data %>%
+  left_join(data_win_party, by = "state") %>%
+  left_join(average_income_by_state, by = "state")
+# Arrange states by average income
+ordered_states <- data_win_party_income %>%
+  arrange(average_income) %>%
+  .$state %>%
+  unique()
+# Create a factor with levels based on income-ordered states for plotting
+data_win_party_income$state <- factor(data_win_party_income$state, levels = ordered_states)
+
+average_death_rate <- mean(data_win_party_income$death_rate)
+
+ggplot(data_win_party_income, aes(x = state, y = death_rate, fill = winning_party)) +
+  geom_boxplot() +
+  geom_hline(yintercept = average_death_rate, linetype = "dashed", color = "black") +
+  annotate("text", x = Inf, y = average_death_rate, label = " National Average", hjust = 1, vjust = -0.5, color = "black", size = 3) +
+
+  # Adding the dashed line
+  scale_fill_manual(values = c('Democratic' = 'blue', 'Republican' = 'red')) +
+  labs(y = 'Death Rate', x = 'State (Ascending Income)', fill = "Winning Party") +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+@fig-income_state can prove our point. The @fig-income_state shows the spread of COVID death rate for each state in the order of ascend income levels. The color represent the party each state supported during 2020 US Federal Election. We can observe that twelve out of the top 15 poorest counties voted for Donald Trump. In contrast, only one of the top 15 richest states voted for the Republican Party. In terms of the death rate, the @fig-income_state also shows that the death rate decreases as income level increases and majority of counties voting for Democratic party has a death rate lower than the national average level.
+
+```{r}
+#| echo: false
+#| message: false
+library(dplyr)
+library(ggplot2)
+
+# Assuming 'data' is your DataFrame with columns: pctile, rep_rate, dem_rate
+
+# Step 1: Calculate the average support rate for each party at each income percentile
+avg_support <- data %>%
+  group_by(pctile) %>%
+  summarise(
+    avg_rep_rate = mean(rep_rate),
+    avg_dem_rate = mean(dem_rate)
+  ) %>%
+  ungroup()
+
+# Step 2: Divide income percentile into four groups
+avg_support <- avg_support %>%
+  mutate(
+    pctile_group = cut(pctile, breaks = quantile(pctile, probs = 0:4/4), include.lowest = TRUE)
+  )
+
+# Step 3: Fit regression models and predict values for each piece (this is a placeholder)
+# You would fit your piece-wise regression models here for each party and each group
+
+# Plotting with placeholder regression lines (You'll need the actual fitted model predictions)
+ggplot(avg_support, aes(x = pctile)) +
+  geom_point(aes(y = avg_rep_rate), color = 'red') +
+  geom_point(aes(y = avg_dem_rate), color = 'blue') +
+  # Placeholder for regression lines
+  geom_smooth(data = subset(avg_support, pctile_group == 1), aes(y = avg_rep_rate, color = "Republican"), method = "lm", se = FALSE) +
+  geom_smooth(data = subset(avg_support, pctile_group == 1), aes(y = avg_dem_rate, color = "Democrat"), method = "lm", se = FALSE) +
+  # ... repeat geom_smooth for other groups ...
+  scale_color_manual(values = c("Republican" = "red", "Democrat" = "blue")) +
+  labs(title = 'Average Support Rate by Income Percentile',
+       x = 'Income Percentile', y = 'Average Support Rate') +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Note: In a real scenario, you would repeat the geom_smooth for the other pctile_groups (2, 3, 4)
+# and would use the actual fitted model predictions.
+
+```
+
+This is a surprising but also horrible observation as Donald Trump is especially in favor of poor people. This means the low-income voters voting for Trump increase their chances of death in disguised form. Based on the fact that the death of COVID of low-income people is almost two times higher than the high-income [citation], it seems that it is not unfair to attribute the high death rate of US to Republican Party (Donald Trump).
+
+## The difference in high-education atteinment and insurance structure may be potential factors causing the above phenomenon.
+
+The model [@tbl-second_model] incorporates the proportion of people that have at least bachelor degree, and the proportion of people with private insurance or without insurance. In terms of education level, there is an inverse relationship between the death rate and the number of residents with high education level. Its coefficient value is relatively high, the death number can be decreased by 0.24 if there are ten more percent people having higher degree.  
 
 ```{r}
 #| echo: false
@@ -459,10 +522,9 @@ ggplot(summarized_data, aes(x = as.numeric(as.character(bin)))) +
 
 @fig-income_education shows the average death rate across different income percentile and the corresponding average high-education levels. The blue line represents the average high-education rates and the red line is the average death rate, corresponding to different y-axis. From the graph, it verifies our conclusion which the average death rate decreases as income percentile increases. Meanwhile, the proportion of people with at least bachelor degree goes higher. 
 
-Therefore, the death rate increases as people voting for the Republican increases. However, people living at poorer counties are more likely to vote for Trump and one potential reason behind this is that the the proportion of residents with at least bachelor degree is relatively low in those counties. High education level people are more willing to live at the wealthier counties, and they are less likely to vote for Trump. Perhaps more educated people do not satisfy the actions taken by the government.
+Therefore, one reason can explain the inequality of COVID mortality is that there are less people with higher degree lives in the low-income county. High educational level people are more willing to live at the wealthier counties. They are more educated and perhaps they know what Trump did was wrong and hence they did not vote for Trump. This can also explain why there are less votes for Trump in wealthier counties/states.
 
-## Income levels to Health insurance: more people can afford the private insurance in wealthier counties and reduce the deaths rate.
-In addition to the political preferences, the healthcare insurance is also significant in predicting the death rate for each county. Based on @tbl-second_model, it seems that both `no_insurance` and `private_insurance` are also significant in predicting the death rate for each county but they shows an inverse relationship on the death rate. In addition, the values of these two coefficients are almost same, meaning that the effects on death rate between them can be offset.
+In addition to education level, the healthcare insurance is also significant in predicting the death rate for each county. Based on @tbl-second_model, it seems that both `no_insurance` and `private_insurance` are also significant in predicting the death rate for each county but they shows an inverse relationship on the death rate. In addition, the values of these two coefficients are almost same, meaning that the effects on death rate between them can be offset.
 
 ```{r}
 #| echo: false
@@ -491,6 +553,8 @@ ggplot(summarized_data, aes(x = as.numeric(as.character(bin)))) +
 ```
 
 @fig-income_insurance shows the proportion of people with no/private insurance at each level of income. Unsurprisingly, as income percentiles increases, the proportion of people with private insurance increases but people with no insurances decreases. This suggest that the insurance can be crucial during the pandemic period. People with insurance, especially private insurance may be more likely to have medicine or vaccines, hence the counties with more people having insurance are relatively lower compared to the counties which less people having insurance. In addition, the private insurance seems to have more significant effects.
+
+Comparing education with insurance, one common thing is that the we can see diverging trends in poorer and wealthier counties. People living in wealthier counties are more educated and concerns more about the public issue. Meanwhile, their awareness of protecting themselves from COVID is stronger than the poorer people. Due to their wealth level, they have the money to purchase private insurance and are more accessible to the medicines or vaccines. This explains why the wealthier counties had a relatively lower COVID mortality rate than poor ones.
 
 # Conclusion
 
@@ -553,9 +617,11 @@ modelsummary(list(social2, economic2, demographic2, overall2, best2), stars=TRUE
 
 \newpage
 
-# References
+# References {.unnumbered}
 
 https://news.un.org/en/story/2023/05/1136367 https://www.aljazeera.com/news/2023/5/11/three-years-1-1-million-deaths-covid-emergency-ending-in-us
 https://wisevoter.com/state-rankings/poorest-states/
 
 https://github.com/tonmcg/US_County_Level_Election_Results_08-20
+
+https://www.reuters.com/world/us/us-poor-died-much-higher-rate-covid-than-rich-report-2022-04-04/
