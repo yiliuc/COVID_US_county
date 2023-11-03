@@ -584,7 +584,7 @@ For future research, one primary thing to do is to use a more complicated model,
 
 # Appendix {.unnumbered}
 
-## Model details
+## Model details {.unnumbered}
 
 ```{r}
 #| echo: false
