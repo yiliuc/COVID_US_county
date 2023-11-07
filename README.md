@@ -1,4 +1,6 @@
-# COVID_US_county
+# STA497: COVID-19 Mortality Rate in US counties
+
+This is the paper investigating the COVID-19 mortality rate in US counties in the reading course STA497 under the supervision of Professor Rohan Alexander.
 
 ## File Structure
 
