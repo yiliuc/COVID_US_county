@@ -1,11 +1,11 @@
 ---
-title: "Accessing the COVID-19 Death Rate in the US: While It Varies Across Different Income Levels, the Impact of Political Preference is Unignorable"
+title: "Accessing the COVID-19 Mortality Rate in the US: While It Varies Across Different Income Levels, the Impact of Political Preference is Unignorable"
 title-block-banner: true
 author: "Yiliu Cao"
 thanks: "Code and data from this analysis are available at: https://github.com/yiliuc/COVID_US_county.git"
 date: "today"
 date-format: "long"
-abstract: "This study utilizes the data on socio-economic factors, COVID-19 statistics, and election results sourced from the American Community Survey, CSSE at JHU and Fox News. Primary findings indicate that the death rate positively relates to voting for the Republican party but has an inverse relation to income levels. The research further identifies a trend of Republican party preference among low-income counties, and the counties voting for the Democratic exhibit lower mortality rates. Furthermore, the potential reasons contributing to the inequality in mortality rate might be the high education and insurance system. Future research should focus on more correlated variables, such as hospital capacity."
+abstract: "This study utilizes the data on socio-economic factors, COVID-19 statistics, and election results sourced from the American Community Survey, CSSE at JHU and Fox News. Primary findings indicate that the mortality rate positively relates to voting for the Republican party but has an inverse relation to income levels. The research further identifies a trend of Republican party preference among low-income counties, and the counties voting for the Democratic exhibit lower mortality rates. Furthermore, the potential reasons contributing to the inequality in mortality rate might be the high education and insurance system. Future research should focus on more correlated variables, such as hospital capacity."
 format: pdf
 toc: true
 number-sections: true
@@ -60,7 +60,7 @@ testing_data <- data_model[-train_indices, ]
 
 # Introduction
 
-On May 23rd, the WHO's Director-General, Dr. Tedros Adhanom Ghebreyesus, announced the end of the COVID-19 pandemic [@un], declaring that the virus was no longer considered a global threat. This marked the official end of the pandemic that spanned three years. Over this period, nearly 7.6 billion people got infected, and approximately 6.9 million succumbed to the disease. The US seems to be one of the countries that have been influenced by COVID-19 the most, with about 1.1 million dead and 104 million infections [@aljazeera_2023]. The mortality rate of COVID-19 in the US is about 3.41 per 1,000, which is significantly higher than in other western developed countries. Interestingly, the pandemic began around the time of the 2020 Federal Election and unfolded entirely during President Biden's term. As another Federal Election looms next year, it is worth knowing how the COVID deaths are related to socio-economic indicators. There's also speculation about the role of political preferences. Analyzing these connections could provide insights to better prepare for and prevent future health crises, especially as we navigate the post-pandemic period.
+On May 23rd 2023, the WHO's Director-General, Dr. Tedros Adhanom Ghebreyesus, announced the end of the COVID-19 pandemic [@un], declaring that the virus was no longer considered a global threat. This marked the official end of the pandemic that spanned three years. Over this period, nearly 7.6 billion confired cases, and approximately 6.9 million succumbed to the disease. The US seems to be one of the countries that have been influenced by COVID-19 the most, with about 1.1 million dead and 104 million infections [@aljazeera_2023]. The mortality rate of COVID-19 in the US is about 3.41 per 1,000, which is significantly higher than in other western developed countries. Interestingly, the pandemic began around the time of the 2020 Federal Election and unfolded entirely during President Biden's term. As another Federal Election looms next year, it is worth knowing how the COVID deaths are related to socio-economic indicators. There's also speculation about the role of political preferences. Analyzing these connections could provide insights to better prepare for and prevent future health crises, especially as we navigate the post-pandemic period.
 
 To understand and explore the COVID death rate, I will use five data sets from three different sources. American Community Survey [@acs] collects the socio-economic information for each county, such as the mean household income. The Center for Systems Science and Engineering (CSSE) at John Hopkins University [@jhu] presents data on COVID-19 cases and deaths by county. Regarding electoral data, Fox News have comprehensive records of the 2020 US Federal Election, providing the vote counts for each party across all counties. These data can help us to assess the inequality of mortality caused by COVID across different countries. 
 
@@ -164,6 +164,7 @@ data.frame(variable = c("High education attainment",
 data  %>%
   ggplot(mapping = aes(x = party, y = death_rate)) +
   geom_boxplot() +
+  geom_jitter(alpha = 0.2, width = 0.3, height = 0) +
   theme_minimal() +
   labs(x = "Voting Party",
        y = "Death Rate per 1000")
@@ -180,7 +181,7 @@ To understand the data clearly, @fig-boxplot presents the distribution of death 
 state_boundaries <- usmap::us_map(regions = "states", 
                                   exclude = c("AK", "Hawaii"))
 plot1 <- plot_usmap(data = data, values = "rep_rate", regions = "counties", exclude = c("AK", "Hawaii")) + 
-  scale_fill_gradient2(name = "Voting for the Republican %", 
+  scale_fill_gradient2(name = "Voting for the Republican per 1000", 
                        low = "blue", mid = "white", high = "red",
                        midpoint = 500, 
                        breaks = c(0, 500, 1000)) + 
@@ -188,7 +189,7 @@ plot1 <- plot_usmap(data = data, values = "rep_rate", regions = "counties", excl
                aes(x = x, y = y, group = group), 
                fill = NA, 
                color = "black", size = 0.8) +  
-  labs(subtitle = "The voting patter for each US county") +
+  labs(subtitle = "The voting pattern for each US county") +
   theme(plot.subtitle = element_text(size = 12,
                                      hjust = 0.5),
         legend.position = "right", plot.title = element_blank())
@@ -208,13 +209,12 @@ plot2 <- plot_usmap(data = data, values = "death_rate", regions = "counties", ex
                                      hjust = 0.5),
         legend.position = "right", plot.title = element_blank())
 
-# Arrange the plots vertically with a main title
 library(cowplot)
 
 plot_grid(plot1, plot2, ncol = 1, align = "v", rel_heights = c(1,1))
 ```
 
-To better understand the distribution of death rate from a geography perspective, @fig-map compares the support for Republicans with the corresponding death rate by plotting them onto maps. From the graph, we can observe that the dark color corresponds to the dark blue, meaning that the counties voting for the Republican seem to have a higher death rate than those voting for the Democratic Party. This pattern is especially significant for the central states.
+To better understand the distribution of death rate from a geographic perspective, @fig-map compares the support for Republicans with the corresponding death rate by plotting them onto maps. From the graph, we can observe that the dark color corresponds to the dark blue, meaning that the counties voting for the Republican seem to have a higher death rate than those voting for the Democratic Party. This pattern is especially significant for the central states.
 
 ## Data limitations
 
@@ -234,7 +234,12 @@ In each OLS regression model, the dependent variable will consistently be the CO
 
 The general form of the regression models is 
 $$Y=\beta_0+\beta_1 X_1+\cdots+\beta_p X_p+\epsilon$$
-where - $Y$ represents the response variables, which is the death rate. - $\beta_0$ represents the intercept, which is the death rate holding all variables to zero - $\beta_j$ represents the change of death rates with one unit increase in $X_j$ - $\epsilon$ captures measurement errors and other discrepancies
+where:
+
+- $Y$ represents the response variables, which is the death rate.
+- $\beta_0$ represents the intercept, which is the death rate holding all variables to zero.
+- $\beta_j$ represents the change of death rates with one unit increase in $X_j$.
+- $\epsilon$ captures measurement errors and other discrepancies
 
 ## Assumptions of the regression models
 
@@ -303,7 +308,7 @@ The above equation shows the model excluding the political preferences. When all
 
 Regarding demographic factors, the number of deaths is inversely correlated with the number of males in a county. One percent increase in the males will result in 0.06 less death. Moreover, it seems that older people are more likely to die from COVID. That said, there will be 0.29 more deaths if there is a one percent increase in the proportion of people aged above 85. Lastly, one percent increase in the proportion of white and black people is expected to have 0.01 more deaths.
 
-## Model Including Plotical Preference
+## Model Including Political Preference
 
 ```{r}
 #| echo: false
@@ -353,7 +358,7 @@ broom::tidy(best2) %>%
 \end{align*}
 ```
 
-The difference between the second and the first model is that the second model includes the political preference for each county as one predictor to predict the death rate due to COVID-19. Holding other variables, we can see that for every 100 more votes per 1000 for the Republican party, 0.3 more people are expected to die.
+The difference between the second and the first model is that the second model includes the political preference for each county as one predictor to predict the death rate due to COVID-19. Holding other variables constant, we can see that for every 100 more votes per 1000 for the Republican party, 0.3 more people are expected to die.
 
 ## Comparing the testing error
 
