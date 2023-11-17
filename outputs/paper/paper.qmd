@@ -26,6 +26,7 @@ library(knitr)
 library(kableExtra)
 library(purrr)
 library(ggplot2)
+library(boot)
 
 acs <- read.csv(here("outputs/data/merged_data_acs.csv"))
 acs_covid <- read.csv(here("outputs/data/merged_data_acs_covid.csv"))
@@ -70,7 +71,46 @@ There will be five main parts in this paper. In the [Data] part, I will introduc
 
 # Data
 
-As introduced in the introduction, there are three primary sources of data in the data: the American Community Survey (ACS) [@acs], The Center for Systems Science and Engineering (CSSE) at John Hopkins University [@jhu], and Fox News [@fox]. Each source provides distinct data dimensions that contribute to predicting the COVID-19 death rate in each US county.
+As introduced in the introduction, there are three primary sources of data in the data: the American Community Survey (ACS) [@acs], The Center for Systems Science and Engineering (CSSE) at John Hopkins University [@jhu], and Fox News [@fox]. Each source provides distinct data dimensions that contribute to predicting the COVID-19 death rate in each US county. The @tbl-summary_variables introduces all the important variables in this paper.
+
+```{r}
+#| echo: false
+#| message: false
+#| label: tbl-summary_variables
+#| tbl-cap: Summary of important variables in the model
+data.frame(variable = c("High education attainment",
+                        "Income Percentile",
+                        "People with no insurance",
+                        "People with private insurance",
+                        "Males",
+                        "People aged above 85",
+                        "White people",
+                        "Black people",
+                        "People supporting Republican"),
+           coded_name = c("high_education",
+                          "IncomePctile",
+                          "no_insurance",
+                          "private_insurance",
+                          "males",
+                          "age_85",
+                          "white",
+                          "black",
+                          "rep_rate"),
+           description = c("The proportion of local residents with at least Bachelor degree",
+                           "The mean household income percentile representing the income level for each county",
+                           "The proportion of local residents without insurance",
+                           "The proportion of local residents with private insurance",
+                           "The proportion of male residents",
+                           "The proportion of people aged above 85",
+                           "The proportion of white people",
+                           "The proportion of black people",
+                           "Number of voters supporting Republican by 1000")) %>% 
+  rename(`Variable` = variable,
+         `Encoded Name` = coded_name,
+         `Description` = description) %>% 
+  kable(booktabs = TRUE) %>% 
+  column_spec(column = 3, width = "6cm")
+```
 
 ## American Community Survey (ACS)
 
@@ -114,47 +154,7 @@ All data was collected and cleaned using the statistical programming language `R
 
 The way to clean each data set is different. For all the ACS data, I downloaded them using ACS API [@acs_api] and only extracted the necessary variables using the codebook published by ACS [@acs_codebook]. Additionally, I standardized the county names and transformed state names into their abbreviated forms. Regarding the COVID data sourced from JHU, I only select the cases and death numbers of US counties. Lastly, for the election data, I not only extracted the county name and transformed the state name to its abbreviation form but also calculated the number of people voting for the Republican party per 1000 voters.
 
-After cleaning each data set, I merge the five data sets by county and state. Based on the merged data set, I calculate the infection and death number per 1000 residents in each county. Therefore, each row in the merged data represents a US county and provides demographic information such as the total population. In addition, the data also contains the voting pattern in each county. The @tbl-summary_variables summarizes all the important variables in this paper.
-
-```{r}
-#| echo: false
-#| message: false
-#| label: tbl-summary_variables
-#| tbl-cap: Summary of important variables in the model
-data.frame(variable = c("High education attainment",
-                        "Income Percentile",
-                        "People with no insurance",
-                        "People with private insurance",
-                        "Males",
-                        "People aged above 85",
-                        "White people",
-                        "Black people",
-                        "People supporting Republican"),
-           coded_name = c("high_education",
-                          "IncomePctile",
-                          "no_insurance",
-                          "private_insurance",
-                          "males",
-                          "age_85",
-                          "white",
-                          "black",
-                          "rep_rate"),
-           description = c("The proportion of local residents with at least Bachelor degree",
-                           "The mean household income percentile representing the income level for each county",
-                           "The proportion of local residents without insurance",
-                           "The proportion of local residents with private insurance",
-                           "The proportion of male residents",
-                           "The proportion of people aged above 85",
-                           "The proportion of white people",
-                           "The proportion of black people",
-                           "Number of voters supporting Republican by 1000")) %>% 
-  rename(`Variable` = variable,
-         `Encoded Name` = coded_name,
-         `Description` = description) %>% 
-  kable(booktabs = TRUE) %>% 
-  column_spec(column = 3, width = "6cm")
-```
-
+After cleaning each data set, I merge the five data sets by county and state. Based on the merged data set, I calculate the infection and death number per 1000 residents in each county. Therefore, each row in the merged data represents a US county and provides demographic information such as the total population. In addition, the data also contains the voting pattern in each county. 
 
 ```{r}
 #| echo: false
@@ -230,7 +230,7 @@ As I introduced, this paper aims to predict the death rate of COVID in each coun
 
 Before we fit the models, I will split the data into training and testing data. The training data is used to fit all the models, and they are tested on the testing model to see which one performs better.
 
-In each OLS regression model, the dependent variable will consistently be the COVID-19 death rate for each county. Given that death rates can be influenced by many factors, including demographics and economics, and given our interest in the potential impact of political party affiliation from the last Federal Election, I will establish two sets of models. The first set will not incorporate political preferences, while the second set will. Within each of these sets, there will be three models, each focusing exclusively on one category of predictors. Additionally, there will be a comprehensive model encompassing all predictors and a best-fit model determined by $R^2_{adj}$ and $RMSE$. In total, this approach will yield ten models, including the two best-fit models. To decide which model is the best, I will evaluate them using testing data to see which one has a lower testing $RMSE$.
+In each OLS regression model, the dependent variable will consistently be the COVID-19 death rate for each county. Given that death rates can be influenced by many factors, including demographics and economics, and given our interest in the potential impact of political party affiliation from the last Federal Election, I will establish two sets of models. The first set will not incorporate political preferences, while the second set will. Within each of these sets, there will be three models, each focusing exclusively on one category of predictors. Additionally, there will be a comprehensive model encompassing all predictors and a best-fit model determined by $R^2_{adj}$ and $RMSE$. In total, this approach will yield ten models, including the two best-fit models. To decide which model is the best, I will perform the 10-fold Cross-Validation to
 
 The general form of the regression models is 
 $$Y=\beta_0+\beta_1 X_1+\cdots+\beta_p X_p+\epsilon$$
@@ -245,16 +245,14 @@ where:
 
 After we fit the linear regression models, it is essential to check the assumptions to ensure the accuracy of our predictions. There are four main assumptions, which are linearity, uncorrelated error, constant variance, and normality. In this paper, I will assume the models satisfy both of the four assumptions.
 
-## Expected MSE and Bias-Variance Trade-off
+## 10-fold Cross-Validation
 
-The rationale for partitioning the data into training and testing sets is to validate our model. That said, by training a model using training data and then evaluating it using test data, we can determine which model produces the lowest expected MSE and better performance.
+The way to compare the two models is to calculate the error by performing the 10-fold Cross-Validation. 10-fold Cross-Validation means to to randomly split the data to 10 roughly equal-sized folds and the first one is treated as the validation set. Then fit the model on the remaining folds and compute the MSE in the first fold. Repeat the process for ten times and the CV error is computed as the averaging of these values. That is:
 
 $$
-\mathbb{E}\left[(Y-\hat{f}(x))^2 \mid X=x\right]=\operatorname{Var}(\hat{f}(x))+(\mathbb{E}[\hat{f}(x)]-f(x))^2+\sigma^2
+CV_{(10)}=\frac{1}{10}\sum_{i=1}^{10}MSE_i
 $$
-The above equation shows the expected MSE, which underscores the bias-variance trade-off. It tells us the trade-off between the model's complexity and the interpretability. An intricate model may increase the bias, but its variance will be higher if we vary the data, and vice-versa.
-
-Hence, by evaluating our models using the testing data, we can know whether we should fit a relatively simple or complicated model.
+Hence, we can compare the CV error for the two models and the model will a lower CV error will perform better.
 
 # Results
 
@@ -360,38 +358,30 @@ broom::tidy(best2) %>%
 
 The difference between the second and the first model is that the second model includes the political preference for each county as one predictor to predict the death rate due to COVID-19. Holding other variables constant, we can see that for every 100 more votes per 1000 for the Republican party, 0.3 more people are expected to die.
 
-## Comparing the testing error
+## 10 Fold Cross-Validation Error
 
-The above two models are fitted using the training data. Comparing the training RMSE from @tbl-all_models1 and @tbl-all_models2, we can find that the model containing the political preference has a lower training RMSE. As introduced in the Methods part, to test the prediction performance of the models, I will calculate the test error for the two models to see which is better.
+@tbl-cv_error shows the 10-fold Cross-Validation error of the above two models. We can see that the model containing the political preference has a smaller error. Therefore, it has a better performance than another one and we should consider the county's political preference when we predict the COVID mortality rate of each county.
 
 ```{r}
 #| echo: false
 #| message: false
-#| label: tbl-test_error
+#| label: tbl-cv_error
 #| tbl-cap: The testing error of the above two models
 
-calculate_testing_error <- function(model, testing_data, outcome) {
-  # Predict the outcomes on the testing data
-  predictions <- predict(model, newdata = testing_data)
-  
-  # Compute the residuals
-  residuals <- predictions - testing_data[[outcome]]
-  
-  # Compute the MSE
-  mse <- mean(residuals^2)
-  
-  return(mse)
-}
+set.seed(0)
+glm.fit <- glm(best1, data =training_data)
+cv_error_1 <- cv.glm(training_data, glm.fit, K=10)$delta[1]
+glm.fit <- glm(best2, data = training_data)
+cv_error_2 <- cv.glm(training_data, glm.fit, K=10)$delta[1]
 
 data.frame(model = c("Model 1", "Model 2"),
-           error = c(calculate_testing_error(best1, testing_data, "death_rate"),
-                     calculate_testing_error(best2, testing_data, "death_rate"))) %>% 
+           error = c(cv_error_1,
+                     cv_error_2)) %>% 
   rename(`Model` = model,
-         `Testinf Error` = error) %>% 
+         `CV Error` = error) %>% 
   kable(booktabs = TRUE)
 ```
 
-@tbl-test_error shows the testing error of the above two models. We can observe that the errors for the two models are 1.769733 and 1.675969. Therefore, the model containing the political preferences has a lower testing MSE; it has better predictions than the another one.
 
 # Discussion
 
