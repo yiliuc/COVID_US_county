@@ -1,9 +1,9 @@
 ---
-title: "Accessing the COVID-19 Mortality Rate in the US: While It Varies Across Different Income Levels, the Impact of Political Preference is Unignorable"
+title: "Examining the COVID-19 Mortality Rate in the US: While It Varies Across Different Income Levels, the Impact of Political Preference is Unignorable"
 title-block-banner: true
 author: "Yiliu Cao"
 thanks: "Code and data from this analysis are available at: https://github.com/yiliuc/COVID_US_county.git"
-date: "today"
+date: "2023-11-01"
 date-format: "long"
 abstract: "This study utilizes the data on socio-economic factors, COVID-19 statistics, and election results sourced from the American Community Survey, CSSE at JHU and Fox News. Primary findings indicate that the mortality rate positively relates to voting for the Republican party but has an inverse relation to income levels. The research further identifies a trend of Republican party preference among low-income counties, and the counties voting for the Democratic exhibit lower mortality rates. Furthermore, the potential reasons contributing to the inequality in mortality rate might be the high education and insurance system. Future research should focus on more correlated variables, such as hospital capacity."
 format: pdf
