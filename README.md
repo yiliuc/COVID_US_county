@@ -1,6 +1,8 @@
-# STA497: COVID-19 Mortality Rate in US counties
+# Examining the COVID-19 Mortality Rate in the US: While It Varies Across Different Income Levels, the Impact of Political Preference is Unignorable
 
-This is the paper investigating the COVID-19 mortality rate in US counties in the reading course STA497 under the supervision of Professor Rohan Alexander.
+## Overview
+
+This paper uses the 2020 U.S. Election data from Fox News (assembled by Tony McGovern), COVID-19 data from Center for Systems Science and Engineering at Johns Hopkins University and U.S. socio-economic data from American Community Survey (ACS), to build a model in predicting a county's mortality rate with incorporating the county's political preference. Specifically, we perform multiple linear regression and use Cross-Validation to test our resulting model.
 
 ## File Structure
 
