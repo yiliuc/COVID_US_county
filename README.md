@@ -4,6 +4,10 @@
 
 This paper uses the 2020 U.S. Election data from Fox News (assembled by Tony McGovern), COVID-19 data from Center for Systems Science and Engineering at Johns Hopkins University and U.S. socio-economic data from American Community Survey (ACS), to build a model in predicting a county's mortality rate with incorporating the county's political preference. Specifically, we perform multiple linear regression and use Cross-Validation to test our resulting model.
 
+This paper and the paper from ECO250 are both the preliminary/prior work of the paper investigating the causal inference between COVID-19 and Trump's loss which is stored at the repository `covid_and_trump_loss`. 
+
+The election and COVID data are extract through their GitHub website, respectively. The socio-economic data are accessed via API.
+
 ## File Structure
 
 The repo is structured as:
