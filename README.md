@@ -1,4 +1,4 @@
-# Examining the COVID-19 Mortality Rate in the US: While It Varies Across Different Income Levels, the Impact of Political Preference is Unignorable
+# Examining the COVID-19 Mortality Rate in the US: While It Varies Across Different Income Levels, the Impact of Political Preference is Unignorable (STA497)
 
 ## Overview
 
